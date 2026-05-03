@@ -41,6 +41,22 @@ jobs:
       - name: Unit tests (no DATABASE_URL required)
         run: cargo test --lib --bins
 
+  # ── Docker build (amd64 only, no push) ─────────────────────────────────────
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # ── Supply chain (licenses + advisories + banned crates) ────────────────────
   deny:
     name: cargo deny
