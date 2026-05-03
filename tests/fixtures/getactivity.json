@@ -1,0 +1,82 @@
+{
+  "status": 0,
+  "body": {
+    "activities": [
+      {
+        "steps": 2151,
+        "distance": 1865.07,
+        "calories": 100.899,
+        "totalcalories": 1857.157,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-04-02",
+        "modified": 1775632124,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      },
+      {
+        "steps": 9110,
+        "distance": 7847.51,
+        "calories": 515.748,
+        "totalcalories": 2400.702,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-04-03",
+        "modified": 1775259582,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      },
+      {
+        "steps": 7978,
+        "distance": 6933.559,
+        "calories": 317.892,
+        "totalcalories": 2214.754,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-04-04",
+        "modified": 1775347098,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      },
+      {
+        "steps": 8590,
+        "distance": 7594.588,
+        "calories": 357.722,
+        "totalcalories": 2245.298,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-04-05",
+        "modified": 1775444382,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      },
+      {
+        "steps": 9314,
+        "distance": 7900.303,
+        "calories": 537.766,
+        "totalcalories": 1874.215,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-04-06",
+        "modified": 1775627760,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "status": 0,
+  "body": {
+    "series": [
+      {
+        "id": 6090871734,
+        "timezone": "Europe/London",
+        "model": 16,
+        "model_id": 94,
+        "hash_deviceid": "DEVICEID",
+        "startdate": 1775174700,
+        "enddate": 1775198400,
+        "date": "2026-04-03",
+        "data": {
+          "lightsleepduration": 3480,
+          "remsleepduration": 2040,
+          "deepsleepduration": 17580,
+          "wakeupduration": 600,
+          "wakeupcount": 1,
+          "durationtosleep": 240,
+          "durationtowakeup": 0,
+          "hr_average": 53,
+          "hr_min": 41,
+          "hr_max": 105
+        },
+        "completed": true,
+        "created": 1775197904,
+        "modified": 1775306646
+      },
+      {
+        "id": 6092937061,
+        "timezone": "Europe/London",
+        "model": 16,
+        "model_id": 94,
+        "hash_deviceid": "DEVICEID",
+        "startdate": 1775263560,
+        "enddate": 1775285340,
+        "date": "2026-04-04",
+        "data": {
+          "lightsleepduration": 4380,
+          "remsleepduration": 2460,
+          "deepsleepduration": 13860,
+          "wakeupduration": 1080,
+          "wakeupcount": 0,
+          "durationtosleep": 1080,
+          "durationtowakeup": 0,
+          "hr_average": 56,
+          "hr_min": 51,
+          "hr_max": 69
+        },
+        "completed": true,
+        "created": 1775282405,
+        "modified": 1775865796
+      },
+      {
+        "id": 6095035699,
+        "timezone": "Europe/London",
+        "model": 16,
+        "model_id": 94,
+        "hash_deviceid": "DEVICEID",
+        "startdate": 1775347380,
+        "enddate": 1775373180,
+        "date": "2026-04-05",
+        "data": {
+          "lightsleepduration": 6359,
+          "remsleepduration": 3720,
+          "deepsleepduration": 14701,
+          "wakeupduration": 1020,
+          "wakeupcount": 0,
+          "durationtosleep": 240,
+          "durationtowakeup": 780,
+          "hr_average": 55,
+          "hr_min": 49,
+          "hr_max": 82
+        },
+        "completed": true,
+        "created": 1775368799,
+        "modified": 1775865796
+      }
+    ]
+  }
+}

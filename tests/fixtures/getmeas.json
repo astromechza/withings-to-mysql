@@ -1,0 +1,95 @@
+{
+  "status": 0,
+  "body": {
+    "updatetime": 1777705259,
+    "timezone": "Europe/London",
+    "measuregrps": [
+      {
+        "grpid": 7580821262,
+        "attrib": 0,
+        "date": 1775256777,
+        "created": 1775259584,
+        "modified": 1775259584,
+        "category": 1,
+        "deviceid": "DEVICEID",
+        "hash_deviceid": "DEVICEID",
+        "measures": [
+          {
+            "value": 99,
+            "type": 54,
+            "unit": 0,
+            "algo": 285343749,
+            "fm": 131,
+            "apppfmid": 9,
+            "appliver": 3411,
+            "algo_params": {
+              "1": 0,
+              "2": 3
+            }
+          }
+        ],
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "comment": null,
+        "timezone": "Europe/London",
+        "is_inconclusive": false
+      },
+      {
+        "grpid": 7580821256,
+        "attrib": 0,
+        "date": 1775256708,
+        "created": 1775259584,
+        "modified": 1775259584,
+        "category": 1,
+        "deviceid": "DEVICEID",
+        "hash_deviceid": "DEVICEID",
+        "measures": [
+          {
+            "value": 63,
+            "type": 11,
+            "unit": 0,
+            "algo": 17171200,
+            "fm": 131,
+            "apppfmid": 9,
+            "appliver": 3411,
+            "algo_params": {
+              "1": 0
+            }
+          }
+        ],
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "comment": null,
+        "timezone": "Europe/London"
+      },
+      {
+        "grpid": 7583593079,
+        "attrib": 0,
+        "date": 1775320006,
+        "created": 1775320040,
+        "modified": 1775320040,
+        "category": 1,
+        "deviceid": "DEVICEID",
+        "hash_deviceid": "DEVICEID",
+        "measures": [
+          {
+            "value": 83,
+            "type": 11,
+            "unit": 0,
+            "algo": 17171200,
+            "fm": 131,
+            "apppfmid": 9,
+            "appliver": 3411,
+            "algo_params": {
+              "1": 0
+            }
+          }
+        ],
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "comment": null,
+        "timezone": "Europe/London"
+      }
+    ]
+  }
+}

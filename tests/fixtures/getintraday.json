@@ -1,0 +1,123 @@
+{
+  "status": 0,
+  "body": {
+    "series": {
+      "1777668926": {
+        "heart_rate": 80,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777669080": {
+        "steps": 8,
+        "duration": 60,
+        "elevation": 0,
+        "distance": 6.74,
+        "calories": 0.26,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777669526": {
+        "heart_rate": 72,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777670126": {
+        "heart_rate": 80,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777670726": {
+        "heart_rate": 72,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777671327": {
+        "heart_rate": 69,
+        "duration": 38,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777671926": {
+        "heart_rate": 71,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777672500": {
+        "steps": 11,
+        "duration": 60,
+        "elevation": 0,
+        "distance": 8.52,
+        "calories": 0.33,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777672526": {
+        "heart_rate": 79,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777672560": {
+        "steps": 0,
+        "duration": 60,
+        "elevation": 0,
+        "distance": 0,
+        "calories": 0,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777672680": {
+        "steps": 24,
+        "duration": 60,
+        "elevation": 0,
+        "distance": 20.42,
+        "calories": 0.81,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777672800": {
+        "steps": 15,
+        "duration": 60,
+        "elevation": 0,
+        "distance": 12.14,
+        "calories": 0.48,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777673126": {
+        "heart_rate": 76,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777673726": {
+        "heart_rate": 70,
+        "duration": 37,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
+      },
+      "1777673820": {
+        "steps": 7
+      }
+    }
+  }
+}

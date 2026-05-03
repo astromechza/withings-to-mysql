@@ -1,0 +1,11 @@
+{
+  "status": 0,
+  "body": {
+    "userid": "12345",
+    "access_token": "new-access-token",
+    "refresh_token": "new-refresh-token",
+    "expires_in": 10800,
+    "scope": "user.metrics,user.activity,user.info",
+    "token_type": "Bearer"
+  }
+}

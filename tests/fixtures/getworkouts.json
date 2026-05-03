@@ -1,0 +1,100 @@
+{
+  "status": 0,
+  "body": {
+    "series": [
+      {
+        "id": 6089823240,
+        "category": 1,
+        "timezone": "Europe/London",
+        "model": 94,
+        "attrib": 7,
+        "startdate": 1775147759,
+        "enddate": 1775148540,
+        "date": "2026-04-02",
+        "deviceid": "DEVICEID",
+        "data": {
+          "calories": 63,
+          "intensity": 32,
+          "manual_distance": 0,
+          "manual_calories": 0,
+          "hr_average": 98,
+          "hr_min": 70,
+          "hr_max": 126,
+          "hr_zone_0": 185,
+          "hr_zone_1": 517,
+          "hr_zone_2": 0,
+          "hr_zone_3": 0,
+          "pause_duration": 0,
+          "steps": 1000,
+          "distance": 808,
+          "elevation": 46,
+          "algo_pause_duration": null,
+          "spo2_average": null
+        },
+        "modified": 1775632126
+      },
+      {
+        "id": 6091289172,
+        "category": 16,
+        "timezone": "Europe/London",
+        "model": 94,
+        "attrib": 7,
+        "startdate": 1775207117,
+        "enddate": 1775210207,
+        "date": "2026-04-03",
+        "deviceid": "DEVICEID",
+        "data": {
+          "calories": 204,
+          "intensity": 32,
+          "manual_distance": 0,
+          "manual_calories": 0,
+          "hr_average": 109,
+          "hr_min": 37,
+          "hr_max": 139,
+          "hr_zone_0": 201,
+          "hr_zone_1": 1770,
+          "hr_zone_2": 136,
+          "hr_zone_3": 0,
+          "pause_duration": 279,
+          "steps": 0,
+          "distance": 0,
+          "elevation": 52,
+          "algo_pause_duration": null,
+          "spo2_average": null
+        },
+        "modified": 1775214411
+      },
+      {
+        "id": 6093690857,
+        "category": 1,
+        "timezone": "Europe/London",
+        "model": 94,
+        "attrib": 7,
+        "startdate": 1775304307,
+        "enddate": 1775305985,
+        "date": "2026-04-04",
+        "deviceid": "DEVICEID",
+        "data": {
+          "calories": 99,
+          "intensity": 13,
+          "manual_distance": 0,
+          "manual_calories": 0,
+          "hr_average": 86,
+          "hr_min": 66,
+          "hr_max": 113,
+          "hr_zone_0": 1332,
+          "hr_zone_1": 338,
+          "hr_zone_2": 0,
+          "hr_zone_3": 0,
+          "pause_duration": 7,
+          "steps": 1557,
+          "distance": 1293,
+          "elevation": 81,
+          "algo_pause_duration": null,
+          "spo2_average": null
+        },
+        "modified": 1775314388
+      }
+    ]
+  }
+}
