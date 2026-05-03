@@ -1,0 +1,57 @@
+# One-shot Job to store OAuth tokens in the DB after completing the consent flow.
+# Usage:
+#   1. Get the consent URL:
+#      kubectl run auth-url --rm -it --restart=Never \
+#        --image=ghcr.io/astromechza/withings-to-mysql:latest \
+#        --env=WITHINGS_CLIENT_ID=<id> \
+#        -- auth-url --redirect-uri https://your-redirect-uri
+#
+#   2. Open the printed URL, complete consent, copy the `code=` param from the redirect.
+#
+#   3. Set the code below and apply:
+#      CODE=<paste-code-here>
+#      kubectl create secret generic withings-exchange-code --from-literal=code=$CODE
+#      kubectl apply -f k8s/exchange-job.yaml
+#
+#   4. Check logs: kubectl logs job/withings-exchange
+#      Expected: "Tokens saved to DB (userid=...)"
+#
+#   5. Clean up: kubectl delete job/withings-exchange secret/withings-exchange-code
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: withings-exchange
+spec:
+  backoffLimit: 0  # don't retry; codes are single-use
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: exchange
+          image: ghcr.io/astromechza/withings-to-mysql:latest
+          args:
+            - exchange
+            - --redirect-uri
+            - "https://your-redirect-uri"  # <-- must match what you used in step 1
+            - $(CODE)
+          env:
+            - name: CODE
+              valueFrom:
+                secretKeyRef:
+                  name: withings-exchange-code
+                  key: code
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: withings-db-url
+                  key: DATABASE_URL
+            - name: WITHINGS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: withings-credentials
+                  key: WITHINGS_CLIENT_ID
+            - name: WITHINGS_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: withings-credentials
+                  key: WITHINGS_CLIENT_SECRET

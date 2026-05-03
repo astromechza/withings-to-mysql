@@ -1,0 +1,70 @@
+# Creates the schema, app user, grants, and DATABASE_URL secret via mariadb-operator.
+# Update mariaDbRef.name to match your MariaDB instance name.
+
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: withings
+spec:
+  mariaDbRef:
+    name: mariadb   # <-- your MariaDB CR name
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+---
+# Store this in Sealed Secrets / External Secrets in production.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: withings-db-password
+type: Opaque
+stringData:
+  password: "change-me"
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: withings
+spec:
+  mariaDbRef:
+    name: mariadb
+  passwordSecretKeyRef:
+    name: withings-db-password
+    key: password
+  maxUserConnections: 10
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: withings
+spec:
+  mariaDbRef:
+    name: mariadb
+  privileges:
+    - SELECT
+    - INSERT
+    - UPDATE
+  database: withings
+  table: "*"
+  username: withings
+  grantOption: false
+---
+# Generates a secret named "withings-db-url" with key DATABASE_URL.
+# The format template produces the mysql:// URL that sqlx expects.
+# Note: if the password contains special chars they must be %-encoded — prefer
+# a password consisting of alphanumeric + hyphens to avoid this.
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Connection
+metadata:
+  name: withings
+spec:
+  mariaDbRef:
+    name: mariadb
+  username: withings
+  passwordSecretKeyRef:
+    name: withings-db-password
+    key: password
+  database: withings
+  secretName: withings-db-url
+  secretTemplate:
+    key: DATABASE_URL
+    format: "mysql://{{ .Username }}:{{ .Password }}@{{ .Host }}:{{ .Port }}/{{ .Database }}"

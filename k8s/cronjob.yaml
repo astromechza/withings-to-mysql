@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: withings-sync
+spec:
+  schedule: "0 * * * *"       # hourly; adjust to taste
+  concurrencyPolicy: Forbid   # never run two syncs simultaneously
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: sync
+              image: ghcr.io/astromechza/withings-to-mysql:latest
+              args: ["sync"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: withings-db-url
+                      key: DATABASE_URL
+                - name: WITHINGS_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: withings-credentials
+                      key: WITHINGS_CLIENT_ID
+                - name: WITHINGS_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: withings-credentials
+                      key: WITHINGS_CLIENT_SECRET
+                # Optional overrides:
+                # - name: WITHINGS_BACKFILL_DAYS
+                #   value: "30"
+                # - name: WITHINGS_USER_TZ
+                #   value: "Europe/London"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
