@@ -4,7 +4,14 @@ targets = []
 # ── Security advisories ───────────────────────────────────────────────────────
 [advisories]
 version = 2
-ignore = []   # add RUSTSEC-XXXX-XXXX here to snooze known false-positives
+ignore = [
+    # RUSTSEC-2023-0071: RSA timing side-channel (Marvin Attack).
+    # Pulled in transitively by sqlx-mysql for MySQL authentication.
+    # No patched version of rsa exists; not directly used by this crate.
+    # Risk is negligible: the RSA key operations happen during DB connection
+    # handshake inside the private network, not over untrusted channels.
+    { id = "RUSTSEC-2023-0071", reason = "transitive via sqlx-mysql, no fix available, low-risk in private network context" },
+]
 
 # ── License policy ────────────────────────────────────────────────────────────
 [licenses]

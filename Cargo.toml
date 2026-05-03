@@ -3,6 +3,7 @@ name = "withings-to-mysql"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.88"
+license = "MIT"
 
 [[bin]]
 name = "withings-to-mysql"
