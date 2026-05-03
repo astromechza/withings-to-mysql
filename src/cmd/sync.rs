@@ -468,7 +468,7 @@ fn now_secs() -> i64 {
 }
 
 fn ts_to_naive(ts: i64) -> Option<chrono::NaiveDateTime> {
-    chrono::NaiveDateTime::from_timestamp_opt(ts, 0)
+    chrono::DateTime::from_timestamp(ts, 0).map(|dt| dt.naive_utc())
 }
 
 #[cfg(test)]

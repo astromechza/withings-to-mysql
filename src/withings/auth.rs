@@ -47,10 +47,12 @@ pub struct EnvelopeToken {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct TokenBody {
-    pub userid: serde_json::Value,
+    #[serde(default)]
+    pub userid: serde_json::Value,  // absent in some Withings responses
     pub access_token: String,
     pub refresh_token: String,
     pub expires_in: i64,
+    #[serde(default)]
     pub scope: String,
     #[serde(default)]
     pub token_type: Option<String>,
