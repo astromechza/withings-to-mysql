@@ -391,6 +391,12 @@ async fn sync_workouts(
 
 // ── intraday ──────────────────────────────────────────────────────────────────
 
+/// Withings getintradayactivity is capped at 24 h per request.
+/// We page through in 24 h chunks up to MAX_INTRADAY_PAGES per sync run.
+/// On the next scheduled run the cursor picks up where we left off.
+const INTRADAY_CHUNK_SECS: i64 = 86_400;
+const MAX_INTRADAY_PAGES: usize = 90; // 90 days max catch-up per run
+
 async fn sync_intraday(
     client: &WithingsClient,
     pool: &MySqlPool,
@@ -398,66 +404,92 @@ async fn sync_intraday(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let start = if cursors.intraday > 0 {
-        cursors.intraday - 3600
+    let mut chunk_start = if cursors.intraday > 0 {
+        cursors.intraday + 1
     } else {
         now - cfg.backfill_days * 86400
     };
 
-    let raw = client
-        .post_data(
-            "/v2/measure",
-            &[
-                ("action", "getintradayactivity".into()),
-                ("data_fields", INTRADAY_FIELDS.into()),
-                ("startdate", start.to_string()),
-                ("enddate", now.to_string()),
-            ],
-        )
-        .await
-        .context("getintraday")?;
-    let body: IntradayBody = unwrap_envelope(&raw)?;
-    let samples = body.samples_sorted();
+    let (mut inserted, mut changed, mut processed) = (0u64, 0u64, 0usize);
+    let mut pages = 0usize;
 
-    for (ts, s) in &samples {
-        let event_time =
-            ts_to_naive(*ts).with_context(|| format!("invalid intraday timestamp {ts}"))?;
+    while chunk_start < now {
+        if pages >= MAX_INTRADAY_PAGES {
+            tracing::warn!(
+                pages,
+                "intraday page limit reached; remaining data fetched on next run"
+            );
+            break;
+        }
 
-        sqlx::query(
-            "INSERT INTO intraday
-               (event_time,heart_rate,steps,elevation,calories,distance_meters,
-                spo2_auto,duration_seconds)
-             VALUES (?,?,?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE
-               heart_rate=VALUES(heart_rate),steps=VALUES(steps),
-               elevation=VALUES(elevation),calories=VALUES(calories),
-               distance_meters=VALUES(distance_meters),spo2_auto=VALUES(spo2_auto),
-               duration_seconds=VALUES(duration_seconds)",
-        )
-        .bind(event_time)
-        .bind(s.heart_rate)
-        .bind(s.steps.map(|v| v as i64))
-        .bind(s.elevation)
-        .bind(s.calories)
-        .bind(s.distance)
-        .bind(s.spo2_auto)
-        .bind(s.duration)
-        .execute(pool)
-        .await
-        .with_context(|| format!("upsert intraday ts={ts}"))?;
+        let chunk_end = (chunk_start + INTRADAY_CHUNK_SECS).min(now);
+
+        let raw = client
+            .post_data(
+                "/v2/measure",
+                &[
+                    ("action", "getintradayactivity".into()),
+                    ("data_fields", INTRADAY_FIELDS.into()),
+                    ("startdate", chunk_start.to_string()),
+                    ("enddate", chunk_end.to_string()),
+                ],
+            )
+            .await
+            .with_context(|| format!("getintraday page {pages}"))?;
+        let body: IntradayBody = unwrap_envelope(&raw)?;
+        let samples = body.samples_sorted();
+
+        for (ts, s) in &samples {
+            let event_time =
+                ts_to_naive(*ts).with_context(|| format!("invalid intraday timestamp {ts}"))?;
+
+            let result = sqlx::query(
+                "INSERT INTO intraday
+                   (event_time,heart_rate,steps,elevation,calories,distance_meters,
+                    spo2_auto,duration_seconds)
+                 VALUES (?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE
+                   heart_rate=VALUES(heart_rate),steps=VALUES(steps),
+                   elevation=VALUES(elevation),calories=VALUES(calories),
+                   distance_meters=VALUES(distance_meters),spo2_auto=VALUES(spo2_auto),
+                   duration_seconds=VALUES(duration_seconds)",
+            )
+            .bind(event_time)
+            .bind(s.heart_rate)
+            .bind(s.steps.map(|v| v as i64))
+            .bind(s.elevation)
+            .bind(s.calories)
+            .bind(s.distance)
+            .bind(s.spo2_auto)
+            .bind(s.duration)
+            .execute(pool)
+            .await
+            .with_context(|| format!("upsert intraday ts={ts}"))?;
+
+            match result.rows_affected() {
+                1 => inserted += 1,
+                2 => changed += 1,
+                _ => {} // 0 = duplicate, no change
+            }
+        }
+
+        processed += samples.len();
+        // Advance cursor to end of this chunk even if no samples (gap in data).
+        cursors.intraday = cursors.intraday.max(chunk_end);
+        chunk_start = chunk_end + 1;
+        pages += 1;
     }
 
-    if let Some(max) = samples.iter().map(|(t, _)| *t).max() {
-        cursors.intraday = cursors.intraday.max(max);
-    }
-    tracing::info!(count = samples.len(), "intraday upserted");
+    tracing::info!(processed, inserted, changed, pages, "intraday synced");
     Ok(())
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 pub fn since_or_backfill(cursor: i64, cfg: &Config, now: i64) -> i64 {
-    if cursor > 0 { cursor } else { now - cfg.backfill_days * 86400 }
+    // +1 makes cursor exclusive: skip the record at exactly the cursor timestamp
+    // so repeated syncs don't re-fetch the boundary record.
+    if cursor > 0 { cursor + 1 } else { now - cfg.backfill_days * 86400 }
 }
 
 fn now_secs() -> i64 {
@@ -493,6 +525,7 @@ mod tests {
 
     #[test]
     fn cursor_used_when_nonzero() {
-        assert_eq!(since_or_backfill(12345, &cfg(), 9_999_999), 12345);
+        // cursor + 1 to make it exclusive (skip boundary record)
+        assert_eq!(since_or_backfill(12345, &cfg(), 9_999_999), 12346);
     }
 }
