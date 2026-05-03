@@ -22,7 +22,7 @@ pub enum Cmd {
         client_id: String,
         #[arg(long)]
         redirect_uri: String,
-        #[arg(long, default_value = "user.metrics,user.activity,user.sleepget,user.info")]
+        #[arg(long, default_value = "user.metrics,user.activity,user.info")]
         scope: String,
         #[arg(long)]
         state: Option<String>,
