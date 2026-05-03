@@ -47,14 +47,20 @@ pub async fn run() -> Result<()> {
     init_logging();
     let cli = Cli::parse();
     match cli.command {
-        Cmd::AuthUrl { client_id, redirect_uri, scope, state } =>
-            cmd::auth_url::run(&client_id, &redirect_uri, &scope, state.as_deref()),
-        Cmd::Exchange { client_id, client_secret, redirect_uri, code } =>
-            cmd::exchange::run(&client_id, &client_secret, &redirect_uri, &code).await,
-        Cmd::Sync =>
-            cmd::sync::run().await,
-        Cmd::DumpState =>
-            cmd::dump_state::run().await,
+        Cmd::AuthUrl {
+            client_id,
+            redirect_uri,
+            scope,
+            state,
+        } => cmd::auth_url::run(&client_id, &redirect_uri, &scope, state.as_deref()),
+        Cmd::Exchange {
+            client_id,
+            client_secret,
+            redirect_uri,
+            code,
+        } => cmd::exchange::run(&client_id, &client_secret, &redirect_uri, &code).await,
+        Cmd::Sync => cmd::sync::run().await,
+        Cmd::DumpState => cmd::dump_state::run().await,
     }
 }
 

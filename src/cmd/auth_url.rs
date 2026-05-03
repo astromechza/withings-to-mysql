@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::withings::client::authorize_url;
+use anyhow::Result;
 
 pub fn run(client_id: &str, redirect_uri: &str, scope: &str, state: Option<&str>) -> Result<()> {
     let st = state.map(str::to_string).unwrap_or_else(|| {

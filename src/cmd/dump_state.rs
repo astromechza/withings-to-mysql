@@ -10,7 +10,7 @@ pub async fn run() -> Result<()> {
     match state::load_tokens(&pool).await? {
         None => println!("No tokens in DB. Run `exchange` first."),
         Some(mut t) => {
-            t.access_token  = redact(&t.access_token);
+            t.access_token = redact(&t.access_token);
             t.refresh_token = redact(&t.refresh_token);
             let c = state::load_cursors(&pool).await?;
             println!("Tokens:");

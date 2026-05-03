@@ -30,8 +30,12 @@ pub async fn run() -> Result<()> {
     let http = reqwest::Client::builder()
         .user_agent(format!("withings-to-mysql/{}", env!("CARGO_PKG_VERSION")))
         .build()?;
-    let client =
-        WithingsClient::new(http, cfg.client_id.clone(), cfg.client_secret.clone(), tokens);
+    let client = WithingsClient::new(
+        http,
+        cfg.client_id.clone(),
+        cfg.client_secret.clone(),
+        tokens,
+    );
 
     let mut cursors = state::load_cursors(&pool).await?;
     let now = now_secs();
@@ -74,7 +78,10 @@ async fn sync_measurements(
             &[
                 ("action", "getmeas".into()),
                 ("meastypes", MEASTYPES.into()),
-                ("lastupdate", since_or_backfill(cursors.measure, cfg, now).to_string()),
+                (
+                    "lastupdate",
+                    since_or_backfill(cursors.measure, cfg, now).to_string(),
+                ),
             ],
         )
         .await
@@ -82,32 +89,32 @@ async fn sync_measurements(
     let body: MeasureBody = unwrap_envelope(&raw)?;
 
     for g in &body.measuregrps {
-        let mut weight_kg:                Option<f64> = None;
-        let mut fat_free_mass_kg:         Option<f64> = None;
-        let mut fat_ratio:                Option<f64> = None;
-        let mut fat_mass_kg:              Option<f64> = None;
-        let mut heart_rate_bpm:           Option<f64> = None;
-        let mut spo2_ratio:               Option<f64> = None;
+        let mut weight_kg: Option<f64> = None;
+        let mut fat_free_mass_kg: Option<f64> = None;
+        let mut fat_ratio: Option<f64> = None;
+        let mut fat_mass_kg: Option<f64> = None;
+        let mut heart_rate_bpm: Option<f64> = None;
+        let mut spo2_ratio: Option<f64> = None;
         let mut body_temperature_celsius: Option<f64> = None;
         let mut skin_temperature_celsius: Option<f64> = None;
-        let mut muscle_mass_kg:           Option<f64> = None;
-        let mut water_ratio:              Option<f64> = None;
-        let mut bone_mass_kg:             Option<f64> = None;
+        let mut muscle_mass_kg: Option<f64> = None;
+        let mut water_ratio: Option<f64> = None;
+        let mut bone_mass_kg: Option<f64> = None;
 
         for m in &g.measures {
             let v = m.real();
             match m.kind {
-                1  => weight_kg                = Some(v),
-                5  => fat_free_mass_kg         = Some(v),
-                6  => fat_ratio                = Some(v),
-                8  => fat_mass_kg              = Some(v),
-                11 => heart_rate_bpm           = Some(v),
-                54 => spo2_ratio               = Some(v),
+                1 => weight_kg = Some(v),
+                5 => fat_free_mass_kg = Some(v),
+                6 => fat_ratio = Some(v),
+                8 => fat_mass_kg = Some(v),
+                11 => heart_rate_bpm = Some(v),
+                54 => spo2_ratio = Some(v),
                 71 => body_temperature_celsius = Some(v),
                 73 => skin_temperature_celsius = Some(v),
-                76 => muscle_mass_kg           = Some(v),
-                77 => water_ratio              = Some(v),
-                88 => bone_mass_kg             = Some(v),
+                76 => muscle_mass_kg = Some(v),
+                77 => water_ratio = Some(v),
+                88 => bone_mass_kg = Some(v),
                 other => tracing::debug!(kind = other, "unmapped measure type"),
             }
         }
@@ -179,7 +186,10 @@ async fn sync_activity(
             &[
                 ("action", "getactivity".into()),
                 ("data_fields", ACTIVITY_FIELDS.into()),
-                ("lastupdate", since_or_backfill(cursors.activity, cfg, now).to_string()),
+                (
+                    "lastupdate",
+                    since_or_backfill(cursors.activity, cfg, now).to_string(),
+                ),
             ],
         )
         .await
@@ -237,7 +247,10 @@ async fn sync_sleep(
             &[
                 ("action", "getsummary".into()),
                 ("data_fields", SLEEP_FIELDS.into()),
-                ("lastupdate", since_or_backfill(cursors.sleep, cfg, now).to_string()),
+                (
+                    "lastupdate",
+                    since_or_backfill(cursors.sleep, cfg, now).to_string(),
+                ),
             ],
         )
         .await
@@ -314,7 +327,10 @@ async fn sync_workouts(
             &[
                 ("action", "getworkouts".into()),
                 ("data_fields", WORKOUT_FIELDS.into()),
-                ("lastupdate", since_or_backfill(cursors.workouts, cfg, now).to_string()),
+                (
+                    "lastupdate",
+                    since_or_backfill(cursors.workouts, cfg, now).to_string(),
+                ),
             ],
         )
         .await
@@ -489,7 +505,11 @@ async fn sync_intraday(
 pub fn since_or_backfill(cursor: i64, cfg: &Config, now: i64) -> i64 {
     // +1 makes cursor exclusive: skip the record at exactly the cursor timestamp
     // so repeated syncs don't re-fetch the boundary record.
-    if cursor > 0 { cursor + 1 } else { now - cfg.backfill_days * 86400 }
+    if cursor > 0 {
+        cursor + 1
+    } else {
+        now - cfg.backfill_days * 86400
+    }
 }
 
 fn now_secs() -> i64 {
@@ -509,11 +529,11 @@ mod tests {
 
     fn cfg() -> Config {
         Config {
-            client_id:     "C".into(),
+            client_id: "C".into(),
             client_secret: "S".into(),
-            database_url:  "x".into(),
+            database_url: "x".into(),
             backfill_days: 30,
-            user_tz:       "UTC".into(),
+            user_tz: "UTC".into(),
         }
     }
 

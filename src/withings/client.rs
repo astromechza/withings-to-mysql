@@ -11,12 +11,12 @@ const ACCOUNT_HOST: &str = "https://account.withings.com";
 
 #[derive(Debug, Clone, Default)]
 pub struct Tokens {
-    pub access_token:  String,
+    pub access_token: String,
     pub refresh_token: String,
     /// Unix timestamp (seconds) at which the access token expires.
-    pub expires_at:    i64,
-    pub scope:         String,
-    pub userid:        String,
+    pub expires_at: i64,
+    pub scope: String,
+    pub userid: String,
 }
 
 fn now_secs() -> i64 {
@@ -170,8 +170,7 @@ impl WithingsClient {
 }
 
 pub fn authorize_url(client_id: &str, redirect_uri: &str, scope: &str, state: &str) -> String {
-    let mut url =
-        url::Url::parse(&format!("{ACCOUNT_HOST}/oauth2_user/authorize2")).expect("url");
+    let mut url = url::Url::parse(&format!("{ACCOUNT_HOST}/oauth2_user/authorize2")).expect("url");
     url.query_pairs_mut()
         .append_pair("response_type", "code")
         .append_pair("client_id", client_id)

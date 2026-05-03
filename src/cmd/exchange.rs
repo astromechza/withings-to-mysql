@@ -32,11 +32,11 @@ pub async fn run(
     let body = client.exchange_code(code, redirect_uri).await?;
 
     let tokens = Tokens {
-        access_token:  body.access_token,
+        access_token: body.access_token,
         refresh_token: body.refresh_token,
-        expires_at:    now_secs() + body.expires_in,
-        userid:        userid_str(&body.userid),
-        scope:         body.scope,
+        expires_at: now_secs() + body.expires_in,
+        userid: userid_str(&body.userid),
+        scope: body.scope,
     };
     state::save_tokens(&pool, &tokens).await?;
     eprintln!("Tokens saved to DB (userid={})", tokens.userid);
