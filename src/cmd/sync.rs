@@ -422,7 +422,7 @@ async fn sync_intraday(
     now: i64,
 ) -> Result<()> {
     let mut chunk_start = if cursors.intraday > 0 {
-        cursors.intraday - INTRADAY_LOOKBACK_SECS
+        cursors.intraday.saturating_sub(INTRADAY_LOOKBACK_SECS)
     } else {
         now - cfg.backfill_days * 86400
     };
