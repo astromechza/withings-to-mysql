@@ -68,7 +68,6 @@ Tokens (access + refresh) are stored in the `state` table. The binary refreshes 
 | `WITHINGS_CLIENT_ID` | Yes | — | OAuth application client ID |
 | `WITHINGS_CLIENT_SECRET` | Yes | — | OAuth application client secret |
 | `WITHINGS_BACKFILL_DAYS` | No | `30` | Days to back-fill on first sync |
-| `WITHINGS_USER_TZ` | No | `UTC` | Parsed but currently unused; `timezone` columns in synced records come from Withings API payloads |
 
 Logging verbosity is controlled via `RUST_LOG` (e.g. `RUST_LOG=debug`).
 

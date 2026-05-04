@@ -116,7 +116,6 @@ re-save to DB.
 | `WITHINGS_CLIENT_ID` | yes | — | OAuth client ID |
 | `WITHINGS_CLIENT_SECRET` | yes | — | OAuth client secret |
 | `WITHINGS_BACKFILL_DAYS` | no | `30` | Days to back-fill on first sync |
-| `WITHINGS_USER_TZ` | no | `UTC` | User timezone (stored in records, not used for conversion) |
 
 ## Commands
 

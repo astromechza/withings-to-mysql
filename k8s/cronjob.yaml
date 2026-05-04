@@ -36,8 +36,6 @@ spec:
                 # Optional overrides:
                 # - name: WITHINGS_BACKFILL_DAYS
                 #   value: "30"
-                # - name: WITHINGS_USER_TZ
-                #   value: "Europe/London"
               resources:
                 requests:
                   cpu: 50m
