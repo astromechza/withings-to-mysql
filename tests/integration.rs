@@ -21,7 +21,6 @@ fn test_cfg(database_url: &str) -> Config {
         client_secret: "SECRET".into(),
         database_url: database_url.into(),
         backfill_days: 30,
-        user_tz: "UTC".into(),
     }
 }
 
