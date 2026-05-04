@@ -6,7 +6,6 @@ pub struct Config {
     pub client_secret: String,
     pub database_url: String,
     pub backfill_days: i64,
-    pub user_tz: String,
 }
 
 impl Config {
@@ -21,7 +20,6 @@ impl Config {
                 .ok()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(30),
-            user_tz: std::env::var("WITHINGS_USER_TZ").unwrap_or_else(|_| "UTC".into()),
         })
     }
 }
@@ -37,9 +35,7 @@ mod tests {
             client_secret: "y".into(),
             database_url: "mysql://u:p@h/db".into(),
             backfill_days: 30,
-            user_tz: "UTC".into(),
         };
         assert_eq!(c.backfill_days, 30);
-        assert_eq!(c.user_tz, "UTC");
     }
 }

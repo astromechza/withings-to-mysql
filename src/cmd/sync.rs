@@ -533,7 +533,6 @@ mod tests {
             client_secret: "S".into(),
             database_url: "x".into(),
             backfill_days: 30,
-            user_tz: "UTC".into(),
         }
     }
 
