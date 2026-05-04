@@ -16,7 +16,7 @@ Withings retroactively edits sleep and activity records via AI re-parsing. A tim
 
 Each endpoint uses a cursor stored in the `state` table. On first run the binary back-fills `WITHINGS_BACKFILL_DAYS` days (default 30). Subsequent runs pick up from the last seen `modified` timestamp.
 
-Intraday data is fetched in 24-hour chunks (Withings API limit) across up to 90 pages per run, resuming from the cursor on the next scheduled run if the full backfill isn't completed.
+Intraday is the exception: its cursor is the `chunk_end` of the last completed 24-hour page, not a `modified` value. The API caps each request at 24 hours, so the binary fetches up to 90 pages per run and advances the cursor after each page (including empty ones). If the full backfill isn't finished in one run, the next run resumes from the last `chunk_end`.
 
 ## Prerequisites
 
@@ -68,7 +68,7 @@ Tokens (access + refresh) are stored in the `state` table. The binary refreshes 
 | `WITHINGS_CLIENT_ID` | Yes | — | OAuth application client ID |
 | `WITHINGS_CLIENT_SECRET` | Yes | — | OAuth application client secret |
 | `WITHINGS_BACKFILL_DAYS` | No | `30` | Days to back-fill on first sync |
-| `WITHINGS_USER_TZ` | No | `UTC` | User timezone (stored in records for reference, not used for conversion) |
+| `WITHINGS_USER_TZ` | No | `UTC` | Parsed but currently unused; `timezone` columns in synced records come from Withings API payloads |
 
 Logging verbosity is controlled via `RUST_LOG` (e.g. `RUST_LOG=debug`).
 
