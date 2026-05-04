@@ -16,7 +16,7 @@ Withings retroactively edits sleep and activity records via AI re-parsing. A tim
 
 Each endpoint uses a cursor stored in the `state` table. On first run the binary back-fills `WITHINGS_BACKFILL_DAYS` days (default 30). Subsequent runs pick up from the last seen `modified` timestamp.
 
-Intraday is the exception: its cursor is the `chunk_end` of the last completed 24-hour page, not a `modified` value. The API caps each request at 24 hours, so the binary fetches up to 90 pages per run and advances the cursor after each page (including empty ones). If the full backfill isn't finished in one run, the next run resumes from the last `chunk_end`.
+Intraday is the exception: its cursor is the `chunk_end` of the last completed 24-hour page, not a `modified` value. The API caps each request at 24 hours, so the binary fetches up to 90 pages per run and advances the cursor after each page (including empty ones). If the full backfill isn't finished in one run, the next run resumes from the last `chunk_end`. Each run also re-fetches the 4 hours before the cursor to recover data that arrived at the Withings API after the previous sync (watch data propagates via Bluetooth → phone → server with a variable delay). Duplicate rows are handled by `ON DUPLICATE KEY UPDATE`.
 
 ## Prerequisites
 

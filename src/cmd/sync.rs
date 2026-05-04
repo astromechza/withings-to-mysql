@@ -412,6 +412,7 @@ async fn sync_workouts(
 /// On the next scheduled run the cursor picks up where we left off.
 const INTRADAY_CHUNK_SECS: i64 = 86_400;
 const MAX_INTRADAY_PAGES: usize = 90; // 90 days max catch-up per run
+const INTRADAY_LOOKBACK_SECS: i64 = 4 * 3600; // re-fetch last 4h to catch delayed watch uploads
 
 async fn sync_intraday(
     client: &WithingsClient,
@@ -421,7 +422,7 @@ async fn sync_intraday(
     now: i64,
 ) -> Result<()> {
     let mut chunk_start = if cursors.intraday > 0 {
-        cursors.intraday + 1
+        cursors.intraday.saturating_sub(INTRADAY_LOOKBACK_SECS)
     } else {
         now - cfg.backfill_days * 86400
     };
