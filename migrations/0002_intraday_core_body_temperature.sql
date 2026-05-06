@@ -1,1 +1,1 @@
-ALTER TABLE intraday ADD COLUMN core_body_temperature DOUBLE;
+ALTER TABLE intraday ADD COLUMN core_body_temperature_celsius DOUBLE;

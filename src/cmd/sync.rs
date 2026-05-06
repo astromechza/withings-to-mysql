@@ -464,14 +464,14 @@ async fn sync_intraday(
             let result = sqlx::query(
                 "INSERT INTO intraday
                    (event_time,heart_rate,steps,elevation,calories,distance_meters,
-                    spo2_auto,duration_seconds,core_body_temperature)
+                    spo2_auto,duration_seconds,core_body_temperature_celsius)
                  VALUES (?,?,?,?,?,?,?,?,?)
                  ON DUPLICATE KEY UPDATE
                    heart_rate=VALUES(heart_rate),steps=VALUES(steps),
                    elevation=VALUES(elevation),calories=VALUES(calories),
                    distance_meters=VALUES(distance_meters),spo2_auto=VALUES(spo2_auto),
                    duration_seconds=VALUES(duration_seconds),
-                   core_body_temperature=VALUES(core_body_temperature)",
+                   core_body_temperature_celsius=VALUES(core_body_temperature_celsius)",
             )
             .bind(event_time)
             .bind(s.heart_rate)
@@ -481,7 +481,7 @@ async fn sync_intraday(
             .bind(s.distance)
             .bind(s.spo2_auto)
             .bind(s.duration)
-            .bind(s.core_body_temperature)
+            .bind(s.core_body_temperature_celsius)
             .execute(pool)
             .await
             .with_context(|| format!("upsert intraday ts={ts}"))?;
