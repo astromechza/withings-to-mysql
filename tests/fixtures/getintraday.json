@@ -117,6 +117,13 @@
       },
       "1777673820": {
         "steps": 7
+      },
+      "1777668990": {
+        "core_body_temperature": 37.243,
+        "duration": 60,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
       }
     }
   }

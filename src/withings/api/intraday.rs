@@ -23,6 +23,8 @@ pub struct IntradaySample {
     pub spo2_auto: Option<f64>,
     #[serde(default)]
     pub duration: Option<i64>,
+    #[serde(default, rename = "core_body_temperature")]
+    pub core_body_temperature_celsius: Option<f64>,
 }
 
 impl IntradayBody {
@@ -53,5 +55,11 @@ mod tests {
         sorted.sort();
         assert_eq!(times, sorted);
         assert!(samples.iter().any(|(_, s)| s.heart_rate.is_some()));
+        let temp_sample = samples
+            .iter()
+            .find(|(_, s)| s.core_body_temperature_celsius.is_some())
+            .expect("fixture should contain a core_body_temperature sample");
+        let v = temp_sample.1.core_body_temperature_celsius.unwrap();
+        assert!((v - 37.243).abs() < 1e-6);
     }
 }
