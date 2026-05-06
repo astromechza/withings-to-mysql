@@ -18,7 +18,8 @@ const SLEEP_FIELDS: &str = "lightsleepduration,deepsleepduration,remsleepduratio
 const WORKOUT_FIELDS: &str = "calories,intensity,manual_distance,manual_calories,\
     hr_average,hr_min,hr_max,hr_zone_0,hr_zone_1,hr_zone_2,hr_zone_3,\
     pause_duration,steps,distance,elevation,spo2_average";
-const INTRADAY_FIELDS: &str = "steps,elevation,calories,distance,duration,heart_rate,spo2_auto";
+const INTRADAY_FIELDS: &str =
+    "steps,elevation,calories,distance,duration,heart_rate,spo2_auto,core_body_temperature";
 
 pub async fn run() -> Result<()> {
     let cfg = Config::from_env()?;
@@ -463,13 +464,14 @@ async fn sync_intraday(
             let result = sqlx::query(
                 "INSERT INTO intraday
                    (event_time,heart_rate,steps,elevation,calories,distance_meters,
-                    spo2_auto,duration_seconds)
-                 VALUES (?,?,?,?,?,?,?,?)
+                    spo2_auto,duration_seconds,core_body_temperature)
+                 VALUES (?,?,?,?,?,?,?,?,?)
                  ON DUPLICATE KEY UPDATE
                    heart_rate=VALUES(heart_rate),steps=VALUES(steps),
                    elevation=VALUES(elevation),calories=VALUES(calories),
                    distance_meters=VALUES(distance_meters),spo2_auto=VALUES(spo2_auto),
-                   duration_seconds=VALUES(duration_seconds)",
+                   duration_seconds=VALUES(duration_seconds),
+                   core_body_temperature=VALUES(core_body_temperature)",
             )
             .bind(event_time)
             .bind(s.heart_rate)
@@ -479,6 +481,7 @@ async fn sync_intraday(
             .bind(s.distance)
             .bind(s.spo2_auto)
             .bind(s.duration)
+            .bind(s.core_body_temperature)
             .execute(pool)
             .await
             .with_context(|| format!("upsert intraday ts={ts}"))?;

@@ -23,6 +23,8 @@ pub struct IntradaySample {
     pub spo2_auto: Option<f64>,
     #[serde(default)]
     pub duration: Option<i64>,
+    #[serde(default)]
+    pub core_body_temperature: Option<f64>,
 }
 
 impl IntradayBody {
