@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1] - 2026-05-07
+
+### Fixed
+
+- Force `time_zone = '+00:00'` on every MySQL connection so `FROM_UNIXTIME()` in
+  Grafana's `$__timeFilter` uses UTC boundaries, preventing a 1-hour shift during
+  British Summer Time.
+
 ## [0.3.0] - 2026-05-06
 
 ### Added
