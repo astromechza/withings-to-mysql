@@ -516,6 +516,13 @@ pub fn since_or_backfill(cursor: i64, cfg: &Config, now: i64) -> i64 {
     }
 }
 
+pub fn intraday_chunk_start(cursor: i64, last_data_ts: Option<i64>, cfg: &Config, now: i64) -> i64 {
+    match (cursor, last_data_ts) {
+        (0, _) | (_, None) => now - cfg.backfill_days * 86400,
+        (_, Some(last)) => last.min(now - INTRADAY_LOOKBACK_SECS),
+    }
+}
+
 fn now_secs() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -550,5 +557,37 @@ mod tests {
     fn cursor_used_when_nonzero() {
         // cursor + 1 to make it exclusive (skip boundary record)
         assert_eq!(since_or_backfill(12345, &cfg(), 9_999_999), 12346);
+    }
+
+    #[test]
+    fn intraday_chunk_start_gap_larger_than_lookback() {
+        // last data 6h ago, cursor advanced past gap — should start at last data
+        let now = 1_700_000_000i64;
+        let last_data = now - 6 * 3600;
+        assert_eq!(
+            intraday_chunk_start(now, Some(last_data), &cfg(), now),
+            last_data
+        );
+    }
+
+    #[test]
+    fn intraday_chunk_start_no_gap() {
+        // last data 1h ago — lookback floor (4h) wins
+        let now = 1_700_000_000i64;
+        let last_data = now - 3600;
+        assert_eq!(
+            intraday_chunk_start(now, Some(last_data), &cfg(), now),
+            now - INTRADAY_LOOKBACK_SECS
+        );
+    }
+
+    #[test]
+    fn intraday_chunk_start_empty_table() {
+        // NULL MAX (no rows) with cursor==0 — full backfill
+        let now = 1_700_000_000i64;
+        assert_eq!(
+            intraday_chunk_start(0, None, &cfg(), now),
+            now - 30 * 86400
+        );
     }
 }
