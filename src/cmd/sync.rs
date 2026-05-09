@@ -586,9 +586,6 @@ mod tests {
     fn intraday_chunk_start_empty_table() {
         // NULL MAX (no rows) with cursor==0 — full backfill
         let now = 1_700_000_000i64;
-        assert_eq!(
-            intraday_chunk_start(0, None, &cfg(), now),
-            now - 30 * 86400
-        );
+        assert_eq!(intraday_chunk_start(0, None, &cfg(), now), now - 30 * 86400);
     }
 }
