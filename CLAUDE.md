@@ -37,6 +37,11 @@ sleep/activity records via AI re-parsing, which a TSDB cannot handle.
 - Never alter existing migration files — add a new numbered file instead.
 - sqlx tracks applied migrations by filename hash.
 
+**README hygiene:**
+- `README.md` is the user-facing source of truth for schema, env vars, and behaviour.
+- When adding a migration, adding an env var, or changing sync behaviour: update the
+  relevant section of `README.md` in the same commit/PR.
+
 ## File map
 
 ```

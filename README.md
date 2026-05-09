@@ -16,7 +16,7 @@ Withings retroactively edits sleep and activity records via AI re-parsing. A tim
 
 Each endpoint uses a cursor stored in the `state` table. On first run the binary back-fills `WITHINGS_BACKFILL_DAYS` days (default 30). Subsequent runs pick up from the last seen `modified` timestamp.
 
-Intraday is the exception: its cursor is the `chunk_end` of the last completed 24-hour page, not a `modified` value. The API caps each request at 24 hours, so the binary fetches up to 90 pages per run and advances the cursor after each page (including empty ones). If the full backfill isn't finished in one run, the next run resumes from the last `chunk_end`. Each run also re-fetches the 4 hours before the cursor to recover data that arrived at the Withings API after the previous sync (watch data propagates via Bluetooth → phone → server with a variable delay). Duplicate rows are handled by `ON DUPLICATE KEY UPDATE`.
+Intraday is the exception: its cursor is the `chunk_end` of the last completed 24-hour page, not a `modified` value. The API caps each request at 24 hours, so the binary fetches up to 90 pages per run and advances the cursor after each page (including empty ones). If the full backfill isn't finished in one run, the next run resumes from the last `chunk_end`. Each run starts from `min(last_event_time_in_db, now − 4 h)` — whichever is further in the past — to recover both briefly-delayed watch uploads and overnight gaps where the watch stopped syncing to the cloud. Duplicate rows are handled by `ON DUPLICATE KEY UPDATE`.
 
 ## Prerequisites
 
@@ -158,6 +158,7 @@ Per-minute samples. Primary key is the event timestamp.
 | `steps` | BIGINT |
 | `elevation`, `calories`, `distance_meters`, `spo2_auto` | DOUBLE |
 | `duration_seconds` | BIGINT |
+| `core_body_temperature_celsius` | DOUBLE |
 
 All `DATETIME` columns are UTC-naive so Grafana's MySQL datasource auto-detects them as time axes and `$__timeFilter(column)` works without wrappers.
 
