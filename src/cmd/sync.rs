@@ -422,10 +422,13 @@ async fn sync_intraday(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let last_data_ts: Option<i64> =
+    let last_data_ts: Option<i64> = if cursors.intraday > 0 {
         sqlx::query_scalar("SELECT UNIX_TIMESTAMP(MAX(event_time)) FROM intraday")
             .fetch_one(pool)
-            .await?;
+            .await?
+    } else {
+        None
+    };
 
     let mut chunk_start = intraday_chunk_start(cursors.intraday, last_data_ts, cfg, now);
 
