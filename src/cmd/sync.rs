@@ -422,11 +422,12 @@ async fn sync_intraday(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let mut chunk_start = if cursors.intraday > 0 {
-        cursors.intraday.saturating_sub(INTRADAY_LOOKBACK_SECS)
-    } else {
-        now - cfg.backfill_days * 86400
-    };
+    let last_data_ts: Option<i64> =
+        sqlx::query_scalar("SELECT UNIX_TIMESTAMP(MAX(event_time)) FROM intraday")
+            .fetch_one(pool)
+            .await?;
+
+    let mut chunk_start = intraday_chunk_start(cursors.intraday, last_data_ts, cfg, now);
 
     let (mut inserted, mut changed, mut processed) = (0u64, 0u64, 0usize);
     let mut pages = 0usize;
