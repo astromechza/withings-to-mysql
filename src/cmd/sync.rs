@@ -565,7 +565,7 @@ mod tests {
         let now = 1_700_000_000i64;
         let last_data = now - 6 * 3600;
         assert_eq!(
-            intraday_chunk_start(now, Some(last_data), &cfg(), now),
+            intraday_chunk_start(1_699_999_000i64, Some(last_data), &cfg(), now),
             last_data
         );
     }
@@ -576,7 +576,7 @@ mod tests {
         let now = 1_700_000_000i64;
         let last_data = now - 3600;
         assert_eq!(
-            intraday_chunk_start(now, Some(last_data), &cfg(), now),
+            intraday_chunk_start(1_699_999_000i64, Some(last_data), &cfg(), now),
             now - INTRADAY_LOOKBACK_SECS
         );
     }
