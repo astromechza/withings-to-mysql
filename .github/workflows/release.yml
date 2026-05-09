@@ -15,6 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set Cargo version from tag
+        run: sed -i "s/^version = .*/version = \"${GITHUB_REF_NAME#v}\"/" Cargo.toml
+
       - name: Set up QEMU (multi-arch emulation)
         uses: docker/setup-qemu-action@v3
 

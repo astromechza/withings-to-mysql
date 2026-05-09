@@ -1,6 +1,8 @@
 [package]
 name = "withings-to-mysql"
-version = "0.3.1"
+# Version is set from the git tag at release time by CI (see .github/workflows/release.yml).
+# Do not bump this manually — push a vX.Y.Z tag instead.
+version = "0.0.0"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT"
