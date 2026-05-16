@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0] - 2026-05-16
+
+### Added
+
+- Sync Withings device state via `getdevice` on every run. Stores `device_type`,
+  `model`, `model_id`, `battery` (`high`/`medium`/`low`), `last_session_at`, and
+  `timezone` per device in a new `devices` table (migration `0003_devices.sql`).
+
 ## [0.3.1] - 2026-05-07
 
 ### Fixed
