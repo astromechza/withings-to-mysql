@@ -518,14 +518,14 @@ async fn sync_devices(client: &WithingsClient, pool: &MySqlPool, now: i64) -> Re
         .context("getdevice")?;
     let body: DeviceBody = unwrap_envelope(&raw)?;
 
-    let mut inserted = 0u32;
+    let (mut inserted, mut updated) = (0u32, 0u32);
     for d in &body.devices {
         let (Some(device_type), Some(model), Some(model_id)) =
             (&d.device_type, &d.model, d.model_id)
         else {
             continue;
         };
-        sqlx::query(
+        let result = sqlx::query(
             "INSERT INTO devices \
              (deviceid, device_type, model, model_id, battery, last_session_at, timezone, synced_at) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
@@ -545,10 +545,14 @@ async fn sync_devices(client: &WithingsClient, pool: &MySqlPool, now: i64) -> Re
         .execute(pool)
         .await
         .with_context(|| format!("upsert device deviceid={}", d.deviceid))?;
-        inserted += 1;
+        match result.rows_affected() {
+            1 => inserted += 1,
+            2 => updated += 1,
+            _ => {}
+        }
     }
 
-    tracing::info!(inserted, "devices synced");
+    tracing::info!(inserted, updated, "devices synced");
     Ok(())
 }
 
