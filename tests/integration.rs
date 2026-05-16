@@ -31,6 +31,7 @@ fn db_url() -> Option<String> {
 
 async fn clean_db(pool: &sqlx::MySqlPool) {
     for t in &[
+        "devices",
         "intraday",
         "workouts",
         "sleep_sessions",
@@ -90,6 +91,12 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
         .mount(&server)
         .await;
 
+    Mock::given(method("POST"))
+        .and(path("/v2/user"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(fixture("getdevice.json")))
+        .mount(&server)
+        .await;
+
     let tokens = Tokens {
         access_token: "atk".into(),
         refresh_token: "rtk".into(),
@@ -136,7 +143,8 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 15);
+    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("devices").await, 2);
 
     // ── idempotency: second sync same data → same row counts ──────────────────
     let mut cursors2 = Cursors::default();
@@ -148,7 +156,8 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 15);
+    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("devices").await, 2);
 }
 
 #[tokio::test]

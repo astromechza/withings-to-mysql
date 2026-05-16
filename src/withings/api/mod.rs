@@ -1,4 +1,5 @@
 pub mod activity;
+pub mod device;
 pub mod intraday;
 pub mod measure;
 pub mod sleep;

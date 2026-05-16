@@ -6,8 +6,8 @@ use crate::config::Config;
 use crate::db;
 use crate::state::{self, Cursors};
 use crate::withings::api::{
-    activity::ActivityBody, intraday::IntradayBody, measure::MeasureBody, sleep::SleepBody,
-    unwrap_envelope, workouts::WorkoutsBody,
+    activity::ActivityBody, device::DeviceBody, intraday::IntradayBody, measure::MeasureBody,
+    sleep::SleepBody, unwrap_envelope, workouts::WorkoutsBody,
 };
 use crate::withings::client::WithingsClient;
 
@@ -61,6 +61,7 @@ pub async fn run_sync(
     sync_sleep(client, pool, cursors, cfg, now).await?;
     sync_workouts(client, pool, cursors, cfg, now).await?;
     sync_intraday(client, pool, cursors, cfg, now).await?;
+    sync_devices(client, pool, now).await?;
     Ok(())
 }
 
@@ -505,6 +506,49 @@ async fn sync_intraday(
     }
 
     tracing::info!(processed, inserted, changed, pages, "intraday synced");
+    Ok(())
+}
+
+// ── devices ───────────────────────────────────────────────────────────────────
+
+async fn sync_devices(client: &WithingsClient, pool: &MySqlPool, now: i64) -> Result<()> {
+    let raw = client
+        .post_data("/v2/user", &[("action", "getdevice".into())])
+        .await
+        .context("getdevice")?;
+    let body: DeviceBody = unwrap_envelope(&raw)?;
+
+    let mut inserted = 0u32;
+    for d in &body.devices {
+        let (Some(device_type), Some(model), Some(model_id)) =
+            (&d.device_type, &d.model, d.model_id)
+        else {
+            continue;
+        };
+        sqlx::query(
+            "INSERT INTO devices \
+             (deviceid, device_type, model, model_id, battery, last_session_at, timezone, synced_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?) \
+             ON DUPLICATE KEY UPDATE \
+               device_type=VALUES(device_type), model=VALUES(model), model_id=VALUES(model_id), \
+               battery=VALUES(battery), last_session_at=VALUES(last_session_at), \
+               timezone=VALUES(timezone), synced_at=VALUES(synced_at)",
+        )
+        .bind(&d.deviceid)
+        .bind(device_type)
+        .bind(model)
+        .bind(model_id)
+        .bind(&d.battery)
+        .bind(d.last_session_date.and_then(ts_to_naive))
+        .bind(&d.timezone)
+        .bind(now)
+        .execute(pool)
+        .await
+        .with_context(|| format!("upsert device deviceid={}", d.deviceid))?;
+        inserted += 1;
+    }
+
+    tracing::info!(inserted, "devices synced");
     Ok(())
 }
 

@@ -1,0 +1,27 @@
+{
+  "status": 0,
+  "body": {
+    "devices": [
+      {
+        "type": "Sleep Monitor",
+        "model": "ScanWatch",
+        "model_id": 93,
+        "battery": "high",
+        "deviceid": "aabbccdd11223344aabbccdd11223344aabbccdd",
+        "hash_deviceid": "aabbccdd11223344aabbccdd11223344aabbccdd",
+        "timezone": "Europe/London",
+        "last_session_date": 1700000000
+      },
+      {
+        "type": "Scale",
+        "model": "Body+",
+        "model_id": 5,
+        "battery": "low",
+        "deviceid": "1122334455667788112233445566778811223344",
+        "hash_deviceid": "1122334455667788112233445566778811223344",
+        "timezone": "Europe/London",
+        "last_session_date": 1699900000
+      }
+    ]
+  }
+}
