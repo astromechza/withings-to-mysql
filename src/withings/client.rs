@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use reqwest::Client as HttpClient;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Arc, Mutex};
 
 use super::auth::{parse_nonce, parse_token, sign_action, sign_getnonce, TokenBody};
@@ -24,6 +25,22 @@ fn now_secs() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
+}
+
+/// Build the HTTP client used for all Withings API calls.
+///
+/// Binds the local socket to the IPv4 unspecified address (`0.0.0.0`) which
+/// forces every outbound connection to use IPv4. `wbsapi.withings.net`
+/// publishes both A and AAAA records, but our deployment environment (microk8s)
+/// has no IPv6 egress, so a connect to the AAAA address blocks until ETIMEDOUT.
+/// The musl-static build has no Happy Eyeballs / RFC 6724 IPv4 preference, so
+/// the resolver order alone decides the family and the job fails intermittently.
+/// Binding to a v4 socket makes any v6 destination fail-fast instead of hanging.
+pub fn build_http_client() -> reqwest::Result<HttpClient> {
+    HttpClient::builder()
+        .user_agent(format!("withings-to-mysql/{}", env!("CARGO_PKG_VERSION")))
+        .local_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED))
+        .build()
 }
 
 #[derive(Clone)]
@@ -191,6 +208,30 @@ fn userid_to_string(v: &serde_json::Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn v4_bound_client_reaches_v4_endpoint() {
+        // build_http_client binds to 0.0.0.0 (IPv4). Verify that an ordinary
+        // request to a v4 endpoint still works — i.e. forcing IPv4 doesn't break
+        // normal connectivity. wiremock binds on 127.0.0.1, so this exercises the
+        // v4 path the production fix relies on.
+        let mock = wiremock::MockServer::start().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .and(wiremock::matchers::path("/ping"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_string("pong"))
+            .mount(&mock)
+            .await;
+        let http = build_http_client().expect("client builds");
+        let body = http
+            .get(format!("{}/ping", mock.uri()))
+            .send()
+            .await
+            .expect("request succeeds")
+            .text()
+            .await
+            .expect("body");
+        assert_eq!(body, "pong");
+    }
 
     #[test]
     fn authorize_url_has_expected_params() {

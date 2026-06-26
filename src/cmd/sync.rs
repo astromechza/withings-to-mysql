@@ -28,9 +28,7 @@ pub async fn run() -> Result<()> {
         .await?
         .context("No tokens — run `exchange` first")?;
 
-    let http = reqwest::Client::builder()
-        .user_agent(format!("withings-to-mysql/{}", env!("CARGO_PKG_VERSION")))
-        .build()?;
+    let http = crate::withings::client::build_http_client()?;
     let client = WithingsClient::new(
         http,
         cfg.client_id.clone(),

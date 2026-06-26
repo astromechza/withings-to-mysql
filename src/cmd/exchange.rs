@@ -20,9 +20,7 @@ pub async fn run(
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL required")?;
     let pool = db::connect(&database_url).await?;
 
-    let http = reqwest::Client::builder()
-        .user_agent(format!("withings-to-mysql/{}", env!("CARGO_PKG_VERSION")))
-        .build()?;
+    let http = crate::withings::client::build_http_client()?;
     let client = WithingsClient::new(
         http,
         client_id.into(),
