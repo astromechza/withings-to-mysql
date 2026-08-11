@@ -173,6 +173,99 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
 }
 
 #[tokio::test]
+async fn sync_activity_follows_pagination() {
+    let Some(url) = db_url() else {
+        eprintln!("SKIP: DATABASE_URL not set");
+        return;
+    };
+
+    let pool = db::connect(&url).await.unwrap();
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+
+    // Non-activity endpoints return empty bodies so run_sync completes.
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"measuregrps":[]}}"#),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v2/sleep"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"series":[]}}"#),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v2/user"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"devices":[]}}"#),
+        )
+        .mount(&server)
+        .await;
+
+    // getactivity: first call (no offset) → page1 (more=true, offset=2);
+    // second call (offset=2) → page2 (more=false). getworkouts/getintraday empty.
+    let page1 = fixture("getactivity_page1.json");
+    let page2 = fixture("getactivity_page2.json");
+    Mock::given(method("POST"))
+        .and(path("/v2/measure"))
+        .respond_with(move |req: &wiremock::Request| {
+            let body = std::str::from_utf8(&req.body).unwrap_or("");
+            if body.contains("getactivity") {
+                if body.contains("offset=2") {
+                    ResponseTemplate::new(200).set_body_string(page2.clone())
+                } else {
+                    ResponseTemplate::new(200).set_body_string(page1.clone())
+                }
+            } else if body.contains("getworkouts") {
+                ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"series":[]}}"#)
+            } else if body.contains("getintradayactivity") {
+                ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"series":{}}}"#)
+            } else {
+                ResponseTemplate::new(404)
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let tokens = Tokens {
+        access_token: "atk".into(),
+        refresh_token: "rtk".into(),
+        expires_at: i64::MAX,
+        userid: "12345".into(),
+        scope: "user.metrics".into(),
+    };
+    let cfg = test_cfg(&url);
+    let client = WithingsClient::new(
+        reqwest::Client::new(),
+        cfg.client_id.clone(),
+        cfg.client_secret.clone(),
+        tokens,
+    )
+    .with_base_url(server.uri());
+
+    let mut cursors = Cursors::default();
+    let now = 1_800_000_000i64;
+    run_sync(&cfg, &client, &pool, &mut cursors, now)
+        .await
+        .unwrap();
+
+    // Both pages' records upserted (2 + 2 distinct dates).
+    let (n,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM daily_activity")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(n, 4, "records from both pages should be present");
+
+    // Cursor advances to the max `modified` across all pages (page2's value).
+    assert_eq!(cursors.activity, 1_772_300_000);
+}
+
+#[tokio::test]
 async fn tokens_round_trip() {
     let Some(url) = db_url() else {
         eprintln!("SKIP: DATABASE_URL not set");
