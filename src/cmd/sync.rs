@@ -173,6 +173,11 @@ async fn sync_measurements(
 
 // ── activity ──────────────────────────────────────────────────────────────────
 
+/// Withings paginates getactivity at 200 records per response. When `more` is
+/// truthy it returns an `offset` to pass back for the next page. We loop until
+/// exhausted, capped at MAX_ACTIVITY_PAGES as a safety bound (200 * cap records).
+const MAX_ACTIVITY_PAGES: usize = 50;
+
 async fn sync_activity(
     client: &WithingsClient,
     pool: &MySqlPool,
@@ -180,55 +185,90 @@ async fn sync_activity(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let raw = client
-        .post_data(
-            "/v2/measure",
-            &[
-                ("action", "getactivity".into()),
-                ("data_fields", ACTIVITY_FIELDS.into()),
-                (
-                    "lastupdate",
-                    since_or_backfill(cursors.activity, cfg, now).to_string(),
-                ),
-            ],
-        )
-        .await
-        .context("getactivity")?;
-    let body: ActivityBody = unwrap_envelope(&raw)?;
+    let lastupdate = since_or_backfill(cursors.activity, cfg, now).to_string();
+    let (mut count, mut max_modified) = (0usize, None::<i64>);
+    let mut offset: Option<i64> = None;
+    let mut pages = 0usize;
 
-    for a in &body.activities {
-        let date = NaiveDate::parse_from_str(&a.date, "%Y-%m-%d")
-            .with_context(|| format!("parse activity date {}", a.date))?;
+    loop {
+        let mut params = vec![
+            ("action", "getactivity".into()),
+            ("data_fields", ACTIVITY_FIELDS.into()),
+            ("lastupdate", lastupdate.clone()),
+        ];
+        if let Some(off) = offset {
+            params.push(("offset", off.to_string()));
+        }
 
-        sqlx::query(
-            "INSERT INTO daily_activity
-               (date,modified_at,steps,distance_meters,calories_kcal,total_calories_kcal,
-                timezone,deviceid,is_tracker)
-             VALUES (?,?,?,?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE
-               modified_at=VALUES(modified_at),steps=VALUES(steps),
-               distance_meters=VALUES(distance_meters),calories_kcal=VALUES(calories_kcal),
-               total_calories_kcal=VALUES(total_calories_kcal),timezone=VALUES(timezone),
-               deviceid=VALUES(deviceid),is_tracker=VALUES(is_tracker)",
-        )
-        .bind(date)
-        .bind(a.modified)
-        .bind(a.steps.map(|v| v as i64))
-        .bind(a.distance)
-        .bind(a.calories)
-        .bind(a.totalcalories)
-        .bind(&a.timezone)
-        .bind(&a.deviceid)
-        .bind(a.is_tracker.map(|b| b as i8))
-        .execute(pool)
-        .await
-        .with_context(|| format!("upsert activity date={}", a.date))?;
+        let raw = client
+            .post_data("/v2/measure", &params)
+            .await
+            .with_context(|| format!("getactivity page {pages}"))?;
+        let body: ActivityBody = unwrap_envelope(&raw)?;
+
+        for a in &body.activities {
+            let date = NaiveDate::parse_from_str(&a.date, "%Y-%m-%d")
+                .with_context(|| format!("parse activity date {}", a.date))?;
+
+            sqlx::query(
+                "INSERT INTO daily_activity
+                   (date,modified_at,steps,distance_meters,calories_kcal,total_calories_kcal,
+                    timezone,deviceid,is_tracker)
+                 VALUES (?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE
+                   modified_at=VALUES(modified_at),steps=VALUES(steps),
+                   distance_meters=VALUES(distance_meters),calories_kcal=VALUES(calories_kcal),
+                   total_calories_kcal=VALUES(total_calories_kcal),timezone=VALUES(timezone),
+                   deviceid=VALUES(deviceid),is_tracker=VALUES(is_tracker)",
+            )
+            .bind(date)
+            .bind(a.modified)
+            .bind(a.steps.map(|v| v as i64))
+            .bind(a.distance)
+            .bind(a.calories)
+            .bind(a.totalcalories)
+            .bind(&a.timezone)
+            .bind(&a.deviceid)
+            .bind(a.is_tracker.map(|b| b as i8))
+            .execute(pool)
+            .await
+            .with_context(|| format!("upsert activity date={}", a.date))?;
+        }
+
+        count += body.activities.len();
+        max_modified = max_modified.max(body.activities.iter().map(|a| a.modified).max());
+        pages += 1;
+
+        if body.more.unwrap_or(0) == 0 {
+            break; // no more pages — done
+        }
+        // Withings signalled more data. We need an offset to fetch it; a missing
+        // offset would leave later pages unread, so fail fast rather than advance
+        // the cursor over records we never upserted.
+        let Some(off) = body.offset else {
+            anyhow::bail!(
+                "getactivity page {pages} reported more data but no offset; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        };
+        offset = Some(off);
+        if pages >= MAX_ACTIVITY_PAGES {
+            // Safety bound reached with data still outstanding. Aborting (and thus
+            // not saving the cursor) is safer than advancing past unread records;
+            // in practice this only trips on the known Withings `more`-forever bug.
+            anyhow::bail!(
+                "getactivity exceeded {MAX_ACTIVITY_PAGES} pages of pagination; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        }
     }
 
-    if let Some(max) = body.activities.iter().map(|a| a.modified).max() {
+    // Advance cursor only after all pages upserted, so a mid-loop failure
+    // re-fetches from the same point rather than skipping unprocessed records.
+    if let Some(max) = max_modified {
         cursors.activity = cursors.activity.max(max);
     }
-    tracing::info!(count = body.activities.len(), "daily_activity upserted");
+    tracing::info!(count, pages, "daily_activity upserted");
     Ok(())
 }
 

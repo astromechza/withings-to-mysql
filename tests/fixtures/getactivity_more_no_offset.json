@@ -1,0 +1,23 @@
+{
+  "status": 0,
+  "body": {
+    "activities": [
+      {
+        "steps": 1001,
+        "distance": 800.1,
+        "calories": 50.5,
+        "totalcalories": 1800.0,
+        "deviceid": null,
+        "hash_deviceid": null,
+        "timezone": "Europe/London",
+        "date": "2026-03-01",
+        "modified": 1772000000,
+        "brand": 1,
+        "modelid": 94,
+        "model": "ScanWatch 2",
+        "is_tracker": true
+      }
+    ],
+    "more": true
+  }
+}
