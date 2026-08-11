@@ -1,0 +1,49 @@
+{
+  "status": 0,
+  "body": {
+    "updatetime": 1777705259,
+    "timezone": "Europe/London",
+    "measuregrps": [
+      {
+        "grpid": 8000000001,
+        "attrib": 0,
+        "date": 1775000000,
+        "created": 1775000100,
+        "modified": 1775000100,
+        "category": 1,
+        "deviceid": "DEVICEID",
+        "hash_deviceid": "DEVICEID",
+        "measures": [
+          {
+            "value": 82500,
+            "type": 1,
+            "unit": -3
+          }
+        ],
+        "modelid": 94,
+        "model": "ScanWatch 2"
+      },
+      {
+        "grpid": 8000000002,
+        "attrib": 0,
+        "date": 1775100000,
+        "created": 1775100200,
+        "modified": 1775100200,
+        "category": 1,
+        "deviceid": "DEVICEID",
+        "hash_deviceid": "DEVICEID",
+        "measures": [
+          {
+            "value": 61,
+            "type": 11,
+            "unit": 0
+          }
+        ],
+        "modelid": 94,
+        "model": "ScanWatch 2"
+      }
+    ],
+    "more": true,
+    "offset": 2
+  }
+}

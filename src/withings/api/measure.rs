@@ -56,6 +56,28 @@ mod tests {
         assert!(!body.measuregrps.is_empty());
         let g = &body.measuregrps[0];
         assert!(!g.measures.is_empty());
+        // Real fixture omits pagination fields → default to None.
+        assert_eq!(body.more, None);
+        assert_eq!(body.offset, None);
+    }
+
+    #[test]
+    fn decodes_paginated_page1() {
+        // First page signals more data via `more: true` + `offset`.
+        let raw = std::fs::read_to_string("tests/fixtures/getmeas_page1.json").unwrap();
+        let body: MeasureBody = unwrap_envelope(&raw).unwrap();
+        assert_eq!(body.measuregrps.len(), 2);
+        assert_eq!(body.more, Some(1));
+        assert_eq!(body.offset, Some(2));
+    }
+
+    #[test]
+    fn decodes_paginated_final_page() {
+        // Final page: `more: false` (→ None) ends the loop.
+        let raw = std::fs::read_to_string("tests/fixtures/getmeas_page2.json").unwrap();
+        let body: MeasureBody = unwrap_envelope(&raw).unwrap();
+        assert_eq!(body.measuregrps.len(), 1);
+        assert_eq!(body.more, None);
     }
 
     #[test]
