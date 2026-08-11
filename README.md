@@ -159,6 +159,9 @@ Per-minute samples. Primary key is the event timestamp.
 | `elevation`, `calories`, `distance_meters`, `spo2_auto` | DOUBLE |
 | `duration_seconds` | BIGINT |
 | `core_body_temperature_celsius` | DOUBLE |
+| `rmssd_ms` | DOUBLE — HRV: root-mean-square of successive RR-interval differences (ms) |
+| `sdnn1_ms` | DOUBLE — HRV: standard deviation of NN (RR) intervals over the window (ms) |
+| `hrv_quality` | BIGINT — Withings HRV quality/confidence score |
 
 All `DATETIME` columns are UTC-naive so Grafana's MySQL datasource auto-detects them as time axes and `$__timeFilter(column)` works without wrappers.
 

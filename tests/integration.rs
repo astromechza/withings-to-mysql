@@ -143,7 +143,7 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("intraday").await, 17);
     assert_eq!(count("devices").await, 2);
 
     // ── idempotency: second sync same data → same row counts ──────────────────
@@ -156,7 +156,7 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("intraday").await, 17);
     assert_eq!(count("devices").await, 2);
 }
 

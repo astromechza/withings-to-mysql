@@ -1,0 +1,3 @@
+ALTER TABLE intraday ADD COLUMN rmssd_ms DOUBLE;
+ALTER TABLE intraday ADD COLUMN sdnn1_ms DOUBLE;
+ALTER TABLE intraday ADD COLUMN hrv_quality BIGINT;

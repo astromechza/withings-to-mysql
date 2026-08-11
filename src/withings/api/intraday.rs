@@ -25,6 +25,12 @@ pub struct IntradaySample {
     pub duration: Option<i64>,
     #[serde(default, rename = "core_body_temperature")]
     pub core_body_temperature_celsius: Option<f64>,
+    #[serde(default, rename = "rmssd")]
+    pub rmssd_ms: Option<f64>,
+    #[serde(default, rename = "sdnn1")]
+    pub sdnn1_ms: Option<f64>,
+    #[serde(default)]
+    pub hrv_quality: Option<i64>,
 }
 
 impl IntradayBody {
@@ -61,5 +67,14 @@ mod tests {
             .expect("fixture should contain a core_body_temperature sample");
         let v = temp_sample.1.core_body_temperature_celsius.unwrap();
         assert!((v - 37.243).abs() < 1e-6);
+
+        let hrv_sample = samples
+            .iter()
+            .find(|(_, s)| s.rmssd_ms.is_some())
+            .expect("fixture should contain an HRV sample");
+        let s = hrv_sample.1;
+        assert!((s.rmssd_ms.unwrap() - 42.5).abs() < 1e-6);
+        assert!((s.sdnn1_ms.unwrap() - 58.3).abs() < 1e-6);
+        assert_eq!(s.hrv_quality, Some(2));
     }
 }
