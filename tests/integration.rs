@@ -266,6 +266,71 @@ async fn sync_activity_follows_pagination() {
 }
 
 #[tokio::test]
+async fn sync_activity_aborts_when_more_without_offset() {
+    let Some(url) = db_url() else {
+        eprintln!("SKIP: DATABASE_URL not set");
+        return;
+    };
+
+    let pool = db::connect(&url).await.unwrap();
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"measuregrps":[]}}"#),
+        )
+        .mount(&server)
+        .await;
+
+    // getactivity claims `more: true` but omits `offset` — the loop must abort
+    // rather than silently stop and advance the cursor over unread records.
+    let bad = fixture("getactivity_more_no_offset.json");
+    Mock::given(method("POST"))
+        .and(path("/v2/measure"))
+        .respond_with(move |req: &wiremock::Request| {
+            let body = std::str::from_utf8(&req.body).unwrap_or("");
+            if body.contains("getactivity") {
+                ResponseTemplate::new(200).set_body_string(bad.clone())
+            } else {
+                ResponseTemplate::new(200).set_body_string(r#"{"status":0,"body":{"series":[]}}"#)
+            }
+        })
+        .mount(&server)
+        .await;
+
+    let tokens = Tokens {
+        access_token: "atk".into(),
+        refresh_token: "rtk".into(),
+        expires_at: i64::MAX,
+        userid: "12345".into(),
+        scope: "user.metrics".into(),
+    };
+    let cfg = test_cfg(&url);
+    let client = WithingsClient::new(
+        reqwest::Client::new(),
+        cfg.client_id.clone(),
+        cfg.client_secret.clone(),
+        tokens,
+    )
+    .with_base_url(server.uri());
+
+    let mut cursors = Cursors::default();
+    let now = 1_800_000_000i64;
+    let err = run_sync(&cfg, &client, &pool, &mut cursors, now)
+        .await
+        .expect_err("run_sync should abort on more-without-offset");
+    assert!(
+        err.to_string().contains("offset") || format!("{err:#}").contains("offset"),
+        "error should mention the missing offset, got: {err:#}"
+    );
+    // Cursor must not advance past the unread records.
+    assert_eq!(cursors.activity, 0, "cursor must not advance on abort");
+}
+
+#[tokio::test]
 async fn tokens_round_trip() {
     let Some(url) = db_url() else {
         eprintln!("SKIP: DATABASE_URL not set");

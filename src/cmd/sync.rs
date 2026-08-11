@@ -239,18 +239,27 @@ async fn sync_activity(
         max_modified = max_modified.max(body.activities.iter().map(|a| a.modified).max());
         pages += 1;
 
-        // Continue only while `more` is truthy and an offset is provided.
-        let has_more = body.more.unwrap_or(0) != 0;
-        match body.offset {
-            Some(off) if has_more => offset = Some(off),
-            _ => break,
+        if body.more.unwrap_or(0) == 0 {
+            break; // no more pages — done
         }
-        if pages >= MAX_ACTIVITY_PAGES {
-            tracing::warn!(
-                pages,
-                "activity page limit reached; remaining data fetched on next run"
+        // Withings signalled more data. We need an offset to fetch it; a missing
+        // offset would leave later pages unread, so fail fast rather than advance
+        // the cursor over records we never upserted.
+        let Some(off) = body.offset else {
+            anyhow::bail!(
+                "getactivity page {pages} reported more data but no offset; \
+                 aborting without advancing cursor to avoid silent data loss"
             );
-            break;
+        };
+        offset = Some(off);
+        if pages >= MAX_ACTIVITY_PAGES {
+            // Safety bound reached with data still outstanding. Aborting (and thus
+            // not saving the cursor) is safer than advancing past unread records;
+            // in practice this only trips on the known Withings `more`-forever bug.
+            anyhow::bail!(
+                "getactivity exceeded {MAX_ACTIVITY_PAGES} pages of pagination; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
         }
     }
 
