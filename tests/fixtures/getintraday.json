@@ -124,6 +124,15 @@
         "model": "ScanWatch 2",
         "model_id": 94,
         "deviceid": "DEVICEID"
+      },
+      "1777669200": {
+        "rmssd": 42.5,
+        "sdnn1": 58.3,
+        "hrv_quality": 2,
+        "duration": 60,
+        "model": "ScanWatch 2",
+        "model_id": 94,
+        "deviceid": "DEVICEID"
       }
     }
   }

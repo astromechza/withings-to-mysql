@@ -143,8 +143,20 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("intraday").await, 17);
     assert_eq!(count("devices").await, 2);
+
+    // HRV columns persisted for the fixture's HRV sample (ts 1777669200).
+    let (rmssd, sdnn1, quality): (Option<f64>, Option<f64>, Option<i64>) = sqlx::query_as(
+        "SELECT rmssd_ms, sdnn1_ms, hrv_quality FROM intraday \
+         WHERE UNIX_TIMESTAMP(event_time) = 1777669200",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rmssd, Some(42.5));
+    assert_eq!(sdnn1, Some(58.3));
+    assert_eq!(quality, Some(2));
 
     // ── idempotency: second sync same data → same row counts ──────────────────
     let mut cursors2 = Cursors::default();
@@ -156,7 +168,7 @@ async fn sync_upserts_all_tables_and_advances_cursors() {
     assert_eq!(count("daily_activity").await, 5);
     assert_eq!(count("sleep_sessions").await, 3);
     assert_eq!(count("workouts").await, 3);
-    assert_eq!(count("intraday").await, 16);
+    assert_eq!(count("intraday").await, 17);
     assert_eq!(count("devices").await, 2);
 }
 
