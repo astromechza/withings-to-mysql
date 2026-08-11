@@ -65,6 +65,11 @@ pub async fn run_sync(
 
 // ── measurements ──────────────────────────────────────────────────────────────
 
+/// Withings paginates getmeas at 200 records per response via `more`/`offset`,
+/// the same convention as getactivity. See sync_activity for the pattern and the
+/// rationale behind failing fast rather than advancing the cursor over unread data.
+const MAX_MEASURE_PAGES: usize = 50;
+
 async fn sync_measurements(
     client: &WithingsClient,
     pool: &MySqlPool,
@@ -72,102 +77,131 @@ async fn sync_measurements(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let raw = client
-        .post_data(
-            "/measure",
-            &[
-                ("action", "getmeas".into()),
-                ("meastypes", MEASTYPES.into()),
-                (
-                    "lastupdate",
-                    since_or_backfill(cursors.measure, cfg, now).to_string(),
-                ),
-            ],
-        )
-        .await
-        .context("getmeas")?;
-    let body: MeasureBody = unwrap_envelope(&raw)?;
+    let lastupdate = since_or_backfill(cursors.measure, cfg, now).to_string();
+    let (mut count, mut max_modified) = (0usize, None::<i64>);
+    let mut offset: Option<i64> = None;
+    let mut pages = 0usize;
 
-    for g in &body.measuregrps {
-        let mut weight_kg: Option<f64> = None;
-        let mut fat_free_mass_kg: Option<f64> = None;
-        let mut fat_ratio: Option<f64> = None;
-        let mut fat_mass_kg: Option<f64> = None;
-        let mut heart_rate_bpm: Option<f64> = None;
-        let mut spo2_ratio: Option<f64> = None;
-        let mut body_temperature_celsius: Option<f64> = None;
-        let mut skin_temperature_celsius: Option<f64> = None;
-        let mut muscle_mass_kg: Option<f64> = None;
-        let mut water_ratio: Option<f64> = None;
-        let mut bone_mass_kg: Option<f64> = None;
-
-        for m in &g.measures {
-            let v = m.real();
-            match m.kind {
-                1 => weight_kg = Some(v),
-                5 => fat_free_mass_kg = Some(v),
-                6 => fat_ratio = Some(v),
-                8 => fat_mass_kg = Some(v),
-                11 => heart_rate_bpm = Some(v),
-                54 => spo2_ratio = Some(v),
-                71 => body_temperature_celsius = Some(v),
-                73 => skin_temperature_celsius = Some(v),
-                76 => muscle_mass_kg = Some(v),
-                77 => water_ratio = Some(v),
-                88 => bone_mass_kg = Some(v),
-                other => tracing::debug!(kind = other, "unmapped measure type"),
-            }
+    loop {
+        let mut params = vec![
+            ("action", "getmeas".into()),
+            ("meastypes", MEASTYPES.into()),
+            ("lastupdate", lastupdate.clone()),
+        ];
+        if let Some(off) = offset {
+            params.push(("offset", off.to_string()));
         }
 
-        let measured_at = ts_to_naive(g.date)
-            .with_context(|| format!("invalid measured_at for grpid={}", g.grpid))?;
+        let raw = client
+            .post_data("/measure", &params)
+            .await
+            .with_context(|| format!("getmeas page {}", pages + 1))?;
+        let body: MeasureBody = unwrap_envelope(&raw)?;
 
-        sqlx::query(
-            "INSERT INTO measurements
-               (grpid,attrib,measured_at,created_at,modified_at,category,deviceid,model,
-                weight_kg,fat_free_mass_kg,fat_ratio,fat_mass_kg,
-                heart_rate_bpm,spo2_ratio,body_temperature_celsius,skin_temperature_celsius,
-                muscle_mass_kg,water_ratio,bone_mass_kg)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE
-               attrib=VALUES(attrib),measured_at=VALUES(measured_at),
-               modified_at=VALUES(modified_at),deviceid=VALUES(deviceid),model=VALUES(model),
-               weight_kg=VALUES(weight_kg),fat_free_mass_kg=VALUES(fat_free_mass_kg),
-               fat_ratio=VALUES(fat_ratio),fat_mass_kg=VALUES(fat_mass_kg),
-               heart_rate_bpm=VALUES(heart_rate_bpm),spo2_ratio=VALUES(spo2_ratio),
-               body_temperature_celsius=VALUES(body_temperature_celsius),
-               skin_temperature_celsius=VALUES(skin_temperature_celsius),
-               muscle_mass_kg=VALUES(muscle_mass_kg),water_ratio=VALUES(water_ratio),
-               bone_mass_kg=VALUES(bone_mass_kg)",
-        )
-        .bind(g.grpid)
-        .bind(g.attrib)
-        .bind(measured_at)
-        .bind(g.created)
-        .bind(g.modified)
-        .bind(g.category)
-        .bind(&g.deviceid)
-        .bind(&g.model)
-        .bind(weight_kg)
-        .bind(fat_free_mass_kg)
-        .bind(fat_ratio)
-        .bind(fat_mass_kg)
-        .bind(heart_rate_bpm)
-        .bind(spo2_ratio)
-        .bind(body_temperature_celsius)
-        .bind(skin_temperature_celsius)
-        .bind(muscle_mass_kg)
-        .bind(water_ratio)
-        .bind(bone_mass_kg)
-        .execute(pool)
-        .await
-        .with_context(|| format!("upsert measurement grpid={}", g.grpid))?;
+        for g in &body.measuregrps {
+            let mut weight_kg: Option<f64> = None;
+            let mut fat_free_mass_kg: Option<f64> = None;
+            let mut fat_ratio: Option<f64> = None;
+            let mut fat_mass_kg: Option<f64> = None;
+            let mut heart_rate_bpm: Option<f64> = None;
+            let mut spo2_ratio: Option<f64> = None;
+            let mut body_temperature_celsius: Option<f64> = None;
+            let mut skin_temperature_celsius: Option<f64> = None;
+            let mut muscle_mass_kg: Option<f64> = None;
+            let mut water_ratio: Option<f64> = None;
+            let mut bone_mass_kg: Option<f64> = None;
+
+            for m in &g.measures {
+                let v = m.real();
+                match m.kind {
+                    1 => weight_kg = Some(v),
+                    5 => fat_free_mass_kg = Some(v),
+                    6 => fat_ratio = Some(v),
+                    8 => fat_mass_kg = Some(v),
+                    11 => heart_rate_bpm = Some(v),
+                    54 => spo2_ratio = Some(v),
+                    71 => body_temperature_celsius = Some(v),
+                    73 => skin_temperature_celsius = Some(v),
+                    76 => muscle_mass_kg = Some(v),
+                    77 => water_ratio = Some(v),
+                    88 => bone_mass_kg = Some(v),
+                    other => tracing::debug!(kind = other, "unmapped measure type"),
+                }
+            }
+
+            let measured_at = ts_to_naive(g.date)
+                .with_context(|| format!("invalid measured_at for grpid={}", g.grpid))?;
+
+            sqlx::query(
+                "INSERT INTO measurements
+                   (grpid,attrib,measured_at,created_at,modified_at,category,deviceid,model,
+                    weight_kg,fat_free_mass_kg,fat_ratio,fat_mass_kg,
+                    heart_rate_bpm,spo2_ratio,body_temperature_celsius,skin_temperature_celsius,
+                    muscle_mass_kg,water_ratio,bone_mass_kg)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE
+                   attrib=VALUES(attrib),measured_at=VALUES(measured_at),
+                   modified_at=VALUES(modified_at),deviceid=VALUES(deviceid),model=VALUES(model),
+                   weight_kg=VALUES(weight_kg),fat_free_mass_kg=VALUES(fat_free_mass_kg),
+                   fat_ratio=VALUES(fat_ratio),fat_mass_kg=VALUES(fat_mass_kg),
+                   heart_rate_bpm=VALUES(heart_rate_bpm),spo2_ratio=VALUES(spo2_ratio),
+                   body_temperature_celsius=VALUES(body_temperature_celsius),
+                   skin_temperature_celsius=VALUES(skin_temperature_celsius),
+                   muscle_mass_kg=VALUES(muscle_mass_kg),water_ratio=VALUES(water_ratio),
+                   bone_mass_kg=VALUES(bone_mass_kg)",
+            )
+            .bind(g.grpid)
+            .bind(g.attrib)
+            .bind(measured_at)
+            .bind(g.created)
+            .bind(g.modified)
+            .bind(g.category)
+            .bind(&g.deviceid)
+            .bind(&g.model)
+            .bind(weight_kg)
+            .bind(fat_free_mass_kg)
+            .bind(fat_ratio)
+            .bind(fat_mass_kg)
+            .bind(heart_rate_bpm)
+            .bind(spo2_ratio)
+            .bind(body_temperature_celsius)
+            .bind(skin_temperature_celsius)
+            .bind(muscle_mass_kg)
+            .bind(water_ratio)
+            .bind(bone_mass_kg)
+            .execute(pool)
+            .await
+            .with_context(|| format!("upsert measurement grpid={}", g.grpid))?;
+        }
+
+        count += body.measuregrps.len();
+        max_modified = max_modified.max(body.measuregrps.iter().map(|g| g.modified).max());
+        pages += 1;
+
+        if body.more.unwrap_or(0) == 0 {
+            break; // no more pages — done
+        }
+        let Some(off) = body.offset else {
+            anyhow::bail!(
+                "getmeas page {pages} reported more data but no offset; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        };
+        offset = Some(off);
+        if pages >= MAX_MEASURE_PAGES {
+            anyhow::bail!(
+                "getmeas exceeded {MAX_MEASURE_PAGES} pages of pagination; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        }
     }
 
-    if let Some(max) = body.measuregrps.iter().map(|g| g.modified).max() {
+    // Advance cursor only after all pages upserted, so a mid-loop failure
+    // re-fetches from the same point rather than skipping unprocessed records.
+    if let Some(max) = max_modified {
         cursors.measure = cursors.measure.max(max);
     }
-    tracing::info!(count = body.measuregrps.len(), "measurements upserted");
+    tracing::info!(count, pages, "measurements upserted");
     Ok(())
 }
 
@@ -274,6 +308,10 @@ async fn sync_activity(
 
 // ── sleep ─────────────────────────────────────────────────────────────────────
 
+/// Withings paginates getsummary at 200 records per response via `more`/`offset`,
+/// the same convention as getactivity. See sync_activity for the pattern rationale.
+const MAX_SLEEP_PAGES: usize = 50;
+
 async fn sync_sleep(
     client: &WithingsClient,
     pool: &MySqlPool,
@@ -281,78 +319,111 @@ async fn sync_sleep(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let raw = client
-        .post_data(
-            "/v2/sleep",
-            &[
-                ("action", "getsummary".into()),
-                ("data_fields", SLEEP_FIELDS.into()),
-                (
-                    "lastupdate",
-                    since_or_backfill(cursors.sleep, cfg, now).to_string(),
-                ),
-            ],
-        )
-        .await
-        .context("getsleep")?;
-    let body: SleepBody = unwrap_envelope(&raw)?;
+    let lastupdate = since_or_backfill(cursors.sleep, cfg, now).to_string();
+    let (mut count, mut max_modified) = (0usize, None::<i64>);
+    let mut offset: Option<i64> = None;
+    let mut pages = 0usize;
 
-    for s in &body.series {
-        let date = NaiveDate::parse_from_str(&s.date, "%Y-%m-%d")
-            .with_context(|| format!("parse sleep date {}", s.date))?;
-        let start_time = ts_to_naive(s.startdate)
-            .with_context(|| format!("invalid start_time for sleep id={}", s.id))?;
-        let end_time = ts_to_naive(s.enddate)
-            .with_context(|| format!("invalid end_time for sleep id={}", s.id))?;
+    loop {
+        let mut params = vec![
+            ("action", "getsummary".into()),
+            ("data_fields", SLEEP_FIELDS.into()),
+            ("lastupdate", lastupdate.clone()),
+        ];
+        if let Some(off) = offset {
+            params.push(("offset", off.to_string()));
+        }
 
-        sqlx::query(
-            "INSERT INTO sleep_sessions
-               (id,timezone,start_time,end_time,date,created_at,modified_at,completed,
-                light_sleep_seconds,deep_sleep_seconds,rem_sleep_seconds,awake_seconds,
-                wakeup_count,duration_to_sleep_seconds,duration_to_wakeup_seconds,
-                hr_average,hr_min,hr_max)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE
-               modified_at=VALUES(modified_at),completed=VALUES(completed),
-               light_sleep_seconds=VALUES(light_sleep_seconds),
-               deep_sleep_seconds=VALUES(deep_sleep_seconds),
-               rem_sleep_seconds=VALUES(rem_sleep_seconds),
-               awake_seconds=VALUES(awake_seconds),wakeup_count=VALUES(wakeup_count),
-               duration_to_sleep_seconds=VALUES(duration_to_sleep_seconds),
-               duration_to_wakeup_seconds=VALUES(duration_to_wakeup_seconds),
-               hr_average=VALUES(hr_average),hr_min=VALUES(hr_min),hr_max=VALUES(hr_max)",
-        )
-        .bind(s.id)
-        .bind(&s.timezone)
-        .bind(start_time)
-        .bind(end_time)
-        .bind(date)
-        .bind(s.created)
-        .bind(s.modified)
-        .bind(s.completed.map(|b| b as i8))
-        .bind(s.data.lightsleepduration)
-        .bind(s.data.deepsleepduration)
-        .bind(s.data.remsleepduration)
-        .bind(s.data.wakeupduration)
-        .bind(s.data.wakeupcount)
-        .bind(s.data.durationtosleep)
-        .bind(s.data.durationtowakeup)
-        .bind(s.data.hr_average)
-        .bind(s.data.hr_min)
-        .bind(s.data.hr_max)
-        .execute(pool)
-        .await
-        .with_context(|| format!("upsert sleep id={}", s.id))?;
+        let raw = client
+            .post_data("/v2/sleep", &params)
+            .await
+            .with_context(|| format!("getsleep page {}", pages + 1))?;
+        let body: SleepBody = unwrap_envelope(&raw)?;
+
+        for s in &body.series {
+            let date = NaiveDate::parse_from_str(&s.date, "%Y-%m-%d")
+                .with_context(|| format!("parse sleep date {}", s.date))?;
+            let start_time = ts_to_naive(s.startdate)
+                .with_context(|| format!("invalid start_time for sleep id={}", s.id))?;
+            let end_time = ts_to_naive(s.enddate)
+                .with_context(|| format!("invalid end_time for sleep id={}", s.id))?;
+
+            sqlx::query(
+                "INSERT INTO sleep_sessions
+                   (id,timezone,start_time,end_time,date,created_at,modified_at,completed,
+                    light_sleep_seconds,deep_sleep_seconds,rem_sleep_seconds,awake_seconds,
+                    wakeup_count,duration_to_sleep_seconds,duration_to_wakeup_seconds,
+                    hr_average,hr_min,hr_max)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE
+                   modified_at=VALUES(modified_at),completed=VALUES(completed),
+                   light_sleep_seconds=VALUES(light_sleep_seconds),
+                   deep_sleep_seconds=VALUES(deep_sleep_seconds),
+                   rem_sleep_seconds=VALUES(rem_sleep_seconds),
+                   awake_seconds=VALUES(awake_seconds),wakeup_count=VALUES(wakeup_count),
+                   duration_to_sleep_seconds=VALUES(duration_to_sleep_seconds),
+                   duration_to_wakeup_seconds=VALUES(duration_to_wakeup_seconds),
+                   hr_average=VALUES(hr_average),hr_min=VALUES(hr_min),hr_max=VALUES(hr_max)",
+            )
+            .bind(s.id)
+            .bind(&s.timezone)
+            .bind(start_time)
+            .bind(end_time)
+            .bind(date)
+            .bind(s.created)
+            .bind(s.modified)
+            .bind(s.completed.map(|b| b as i8))
+            .bind(s.data.lightsleepduration)
+            .bind(s.data.deepsleepduration)
+            .bind(s.data.remsleepduration)
+            .bind(s.data.wakeupduration)
+            .bind(s.data.wakeupcount)
+            .bind(s.data.durationtosleep)
+            .bind(s.data.durationtowakeup)
+            .bind(s.data.hr_average)
+            .bind(s.data.hr_min)
+            .bind(s.data.hr_max)
+            .execute(pool)
+            .await
+            .with_context(|| format!("upsert sleep id={}", s.id))?;
+        }
+
+        count += body.series.len();
+        max_modified = max_modified.max(body.series.iter().map(|s| s.modified).max());
+        pages += 1;
+
+        if body.more.unwrap_or(0) == 0 {
+            break; // no more pages — done
+        }
+        let Some(off) = body.offset else {
+            anyhow::bail!(
+                "getsleep page {pages} reported more data but no offset; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        };
+        offset = Some(off);
+        if pages >= MAX_SLEEP_PAGES {
+            anyhow::bail!(
+                "getsleep exceeded {MAX_SLEEP_PAGES} pages of pagination; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        }
     }
 
-    if let Some(max) = body.series.iter().map(|s| s.modified).max() {
+    // Advance cursor only after all pages upserted, so a mid-loop failure
+    // re-fetches from the same point rather than skipping unprocessed records.
+    if let Some(max) = max_modified {
         cursors.sleep = cursors.sleep.max(max);
     }
-    tracing::info!(count = body.series.len(), "sleep_sessions upserted");
+    tracing::info!(count, pages, "sleep_sessions upserted");
     Ok(())
 }
 
 // ── workouts ──────────────────────────────────────────────────────────────────
+
+/// Withings paginates getworkouts at 200 records per response via `more`/`offset`,
+/// the same convention as getactivity. See sync_activity for the pattern rationale.
+const MAX_WORKOUT_PAGES: usize = 50;
 
 async fn sync_workouts(
     client: &WithingsClient,
@@ -361,87 +432,116 @@ async fn sync_workouts(
     cfg: &Config,
     now: i64,
 ) -> Result<()> {
-    let raw = client
-        .post_data(
-            "/v2/measure",
-            &[
-                ("action", "getworkouts".into()),
-                ("data_fields", WORKOUT_FIELDS.into()),
-                (
-                    "lastupdate",
-                    since_or_backfill(cursors.workouts, cfg, now).to_string(),
-                ),
-            ],
-        )
-        .await
-        .context("getworkouts")?;
-    let body: WorkoutsBody = unwrap_envelope(&raw)?;
+    let lastupdate = since_or_backfill(cursors.workouts, cfg, now).to_string();
+    let (mut count, mut max_modified) = (0usize, None::<i64>);
+    let mut offset: Option<i64> = None;
+    let mut pages = 0usize;
 
-    for w in &body.series {
-        let date = w
-            .date
-            .as_deref()
-            .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
-        let start_time = ts_to_naive(w.startdate)
-            .with_context(|| format!("invalid start_time for workout id={}", w.id))?;
-        let end_time = ts_to_naive(w.enddate)
-            .with_context(|| format!("invalid end_time for workout id={}", w.id))?;
+    loop {
+        let mut params = vec![
+            ("action", "getworkouts".into()),
+            ("data_fields", WORKOUT_FIELDS.into()),
+            ("lastupdate", lastupdate.clone()),
+        ];
+        if let Some(off) = offset {
+            params.push(("offset", off.to_string()));
+        }
 
-        sqlx::query(
-            "INSERT INTO workouts
-               (id,category,attrib,start_time,end_time,modified_at,timezone,date,
-                calories_kcal,intensity,manual_distance_meters,manual_calories_kcal,
-                hr_average,hr_min,hr_max,
-                hr_zone_0_seconds,hr_zone_1_seconds,hr_zone_2_seconds,hr_zone_3_seconds,
-                pause_seconds,steps,distance_meters,elevation_meters,spo2_average)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE
-               modified_at=VALUES(modified_at),calories_kcal=VALUES(calories_kcal),
-               intensity=VALUES(intensity),
-               manual_distance_meters=VALUES(manual_distance_meters),
-               manual_calories_kcal=VALUES(manual_calories_kcal),
-               hr_average=VALUES(hr_average),hr_min=VALUES(hr_min),hr_max=VALUES(hr_max),
-               hr_zone_0_seconds=VALUES(hr_zone_0_seconds),
-               hr_zone_1_seconds=VALUES(hr_zone_1_seconds),
-               hr_zone_2_seconds=VALUES(hr_zone_2_seconds),
-               hr_zone_3_seconds=VALUES(hr_zone_3_seconds),
-               pause_seconds=VALUES(pause_seconds),steps=VALUES(steps),
-               distance_meters=VALUES(distance_meters),
-               elevation_meters=VALUES(elevation_meters),spo2_average=VALUES(spo2_average)",
-        )
-        .bind(w.id)
-        .bind(w.category)
-        .bind(w.attrib)
-        .bind(start_time)
-        .bind(end_time)
-        .bind(w.modified)
-        .bind(&w.timezone)
-        .bind(date)
-        .bind(w.data.calories)
-        .bind(w.data.intensity)
-        .bind(w.data.manual_distance)
-        .bind(w.data.manual_calories)
-        .bind(w.data.hr_average)
-        .bind(w.data.hr_min)
-        .bind(w.data.hr_max)
-        .bind(w.data.hr_zone_0)
-        .bind(w.data.hr_zone_1)
-        .bind(w.data.hr_zone_2)
-        .bind(w.data.hr_zone_3)
-        .bind(w.data.pause_duration)
-        .bind(w.data.steps)
-        .bind(w.data.distance)
-        .bind(w.data.elevation)
-        .bind(w.data.spo2_average)
-        .execute(pool)
-        .await
-        .with_context(|| format!("upsert workout id={}", w.id))?;
+        let raw = client
+            .post_data("/v2/measure", &params)
+            .await
+            .with_context(|| format!("getworkouts page {}", pages + 1))?;
+        let body: WorkoutsBody = unwrap_envelope(&raw)?;
+
+        for w in &body.series {
+            let date = w
+                .date
+                .as_deref()
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok());
+            let start_time = ts_to_naive(w.startdate)
+                .with_context(|| format!("invalid start_time for workout id={}", w.id))?;
+            let end_time = ts_to_naive(w.enddate)
+                .with_context(|| format!("invalid end_time for workout id={}", w.id))?;
+
+            sqlx::query(
+                "INSERT INTO workouts
+                   (id,category,attrib,start_time,end_time,modified_at,timezone,date,
+                    calories_kcal,intensity,manual_distance_meters,manual_calories_kcal,
+                    hr_average,hr_min,hr_max,
+                    hr_zone_0_seconds,hr_zone_1_seconds,hr_zone_2_seconds,hr_zone_3_seconds,
+                    pause_seconds,steps,distance_meters,elevation_meters,spo2_average)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE
+                   modified_at=VALUES(modified_at),calories_kcal=VALUES(calories_kcal),
+                   intensity=VALUES(intensity),
+                   manual_distance_meters=VALUES(manual_distance_meters),
+                   manual_calories_kcal=VALUES(manual_calories_kcal),
+                   hr_average=VALUES(hr_average),hr_min=VALUES(hr_min),hr_max=VALUES(hr_max),
+                   hr_zone_0_seconds=VALUES(hr_zone_0_seconds),
+                   hr_zone_1_seconds=VALUES(hr_zone_1_seconds),
+                   hr_zone_2_seconds=VALUES(hr_zone_2_seconds),
+                   hr_zone_3_seconds=VALUES(hr_zone_3_seconds),
+                   pause_seconds=VALUES(pause_seconds),steps=VALUES(steps),
+                   distance_meters=VALUES(distance_meters),
+                   elevation_meters=VALUES(elevation_meters),spo2_average=VALUES(spo2_average)",
+            )
+            .bind(w.id)
+            .bind(w.category)
+            .bind(w.attrib)
+            .bind(start_time)
+            .bind(end_time)
+            .bind(w.modified)
+            .bind(&w.timezone)
+            .bind(date)
+            .bind(w.data.calories)
+            .bind(w.data.intensity)
+            .bind(w.data.manual_distance)
+            .bind(w.data.manual_calories)
+            .bind(w.data.hr_average)
+            .bind(w.data.hr_min)
+            .bind(w.data.hr_max)
+            .bind(w.data.hr_zone_0)
+            .bind(w.data.hr_zone_1)
+            .bind(w.data.hr_zone_2)
+            .bind(w.data.hr_zone_3)
+            .bind(w.data.pause_duration)
+            .bind(w.data.steps)
+            .bind(w.data.distance)
+            .bind(w.data.elevation)
+            .bind(w.data.spo2_average)
+            .execute(pool)
+            .await
+            .with_context(|| format!("upsert workout id={}", w.id))?;
+        }
+
+        count += body.series.len();
+        max_modified = max_modified.max(body.series.iter().map(|w| w.modified).max());
+        pages += 1;
+
+        if body.more.unwrap_or(0) == 0 {
+            break; // no more pages — done
+        }
+        let Some(off) = body.offset else {
+            anyhow::bail!(
+                "getworkouts page {pages} reported more data but no offset; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        };
+        offset = Some(off);
+        if pages >= MAX_WORKOUT_PAGES {
+            anyhow::bail!(
+                "getworkouts exceeded {MAX_WORKOUT_PAGES} pages of pagination; \
+                 aborting without advancing cursor to avoid silent data loss"
+            );
+        }
     }
 
-    if let Some(max) = body.series.iter().map(|w| w.modified).max() {
+    // Advance cursor only after all pages upserted, so a mid-loop failure
+    // re-fetches from the same point rather than skipping unprocessed records.
+    if let Some(max) = max_modified {
         cursors.workouts = cursors.workouts.max(max);
     }
-    tracing::info!(count = body.series.len(), "workouts upserted");
+    tracing::info!(count, pages, "workouts upserted");
     Ok(())
 }
 

@@ -3,8 +3,12 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
 pub struct SleepBody {
     pub series: Vec<SleepNight>,
+    /// `true`/`1` when more pages remain; re-request with `offset`.
     #[serde(default, deserialize_with = "super::de_bool_as_none_i64")]
     pub more: Option<i64>,
+    /// Value to pass as the `offset` param to fetch the next page.
+    #[serde(default, deserialize_with = "super::de_bool_as_none_i64")]
+    pub offset: Option<i64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
